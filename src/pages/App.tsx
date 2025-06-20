@@ -8,14 +8,17 @@ const App = () => {
   const [category, setCategory] = useState('AVFV');
 
   useEffect(() => {
+    console.log("📦 App is geladen");
     fetchTeams();
   }, []);
 
   const fetchTeams = async () => {
+    console.log("🔄 Ophalen van teams...");
     const { data, error } = await supabase.from('teams').select('*');
     if (error) {
-      console.error('Fout bij ophalen teams:', error.message);
+      console.error("❌ Fout bij ophalen teams:", error.message);
     } else {
+      console.log("✅ Teams opgehaald:", data);
       setTeams(data || []);
     }
     setLoading(false);
@@ -23,12 +26,14 @@ const App = () => {
 
   const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("➕ Nieuw team toevoegen:", teamName, category);
     if (!teamName) return;
 
     const { error } = await supabase.from('teams').insert([{ name: teamName, category }]);
     if (error) {
-      console.error('Fout bij toevoegen team:', error.message);
+      console.error("❌ Fout bij toevoegen team:", error.message);
     } else {
+      console.log("✅ Team toegevoegd");
       setTeamName('');
       await fetchTeams();
     }
