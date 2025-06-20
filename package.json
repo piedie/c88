@@ -1,6 +1,6 @@
 {
-  "name": "crazy88-full-app",
-  "version": "0.0.1",
+  "name": "crazy88-complete-app",
+  "version": "1.0.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
