@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import './App.css';
 
 const App = () => {
   const [teams, setTeams] = useState<any[]>([]);
   const [scores, setScores] = useState<any[]>([]);
-  const [teamId, setTeamId] = useState('');
-  const [assignment, setAssignment] = useState('');
-  const [points, setPoints] = useState(1);
+  const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
   const [doublePoints, setDoublePoints] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
@@ -21,21 +19,24 @@ const App = () => {
     setTeams(teamData || []);
     setScores(scoreData || []);
     setDoublePoints(config?.double_points_active || false);
-    setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamId || !assignment) return;
-    const finalPoints = doublePoints ? points * 2 : points;
-    const { error } = await supabase.from('scores').insert([
-      { team_id: teamId, assignment_id: Number(assignment), points: finalPoints },
+  const handleAssignmentClick = (num: number) => {
+    setSelectedAssignment(num);
+  };
+
+  const handleTeamClick = async (teamId: string) => {
+    if (!selectedAssignment) return;
+    const finalPoints = doublePoints ? 2 : 1;
+    await supabase.from('scores').insert([
+      {
+        team_id: teamId,
+        assignment_id: selectedAssignment,
+        points: finalPoints,
+      },
     ]);
-    if (!error) {
-      setAssignment('');
-      setPoints(1);
-      fetchData();
-    }
+    setSelectedAssignment(null);
+    fetchData();
   };
 
   const toggleDoublePoints = async () => {
@@ -46,85 +47,46 @@ const App = () => {
     if (!error) setDoublePoints(!doublePoints);
   };
 
-  const teamPoints = teams.map((team) => {
-    const total = scores
-      .filter((s) => s.team_id === team.id)
-      .reduce((sum, s) => sum + s.points, 0);
-    return { ...team, total };
-  });
-
-  const bestCategory = () => {
-    const catTotals: any = {};
-    teams.forEach((t) => {
-      const total = scores
-        .filter((s) => s.team_id === t.id)
-        .reduce((sum, s) => sum + s.points, 0);
-      catTotals[t.category] = (catTotals[t.category] || 0) + total;
-    });
-    const best = Object.entries(catTotals).sort((a: any, b: any) => b[1] - a[1])[0];
-    return best ? `${best[0]} (${best[1]} punten)` : 'n.v.t.';
-  };
-
-  const mostPopularAssignment = () => {
-    const counter: Record<number, number> = {};
-    scores.forEach((s) => {
-      counter[s.assignment_id] = (counter[s.assignment_id] || 0) + 1;
-    });
-    const sorted = Object.entries(counter).sort((a, b) => b[1] - a[1]);
-    return sorted.length > 0 ? `#${sorted[0][0]} (${sorted[0][1]} keer)` : 'n.v.t.';
-  };
+  const teamByCategory = (category: string) =>
+    teams.filter((t) => t.category === category);
 
   return (
-    <div>
-      <h1>Crazy 88 Jury-paneel</h1>
-      <form onSubmit={handleSubmit}>
-        <h2>Voer behaalde opdracht in</h2>
-        <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-          <option value="">-- Kies team --</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} ({t.category})
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          placeholder="Opdrachtnummer (1–88)"
-          value={assignment}
-          onChange={(e) => setAssignment(e.target.value)}
-          min="1"
-          max="88"
-        />
-        <input
-          type="number"
-          placeholder="Punten"
-          value={points}
-          onChange={(e) => setPoints(Number(e.target.value))}
-          min="1"
-        />
-        <button type="submit">Punten toevoegen</button>
-      </form>
+    <div className="app">
+      <h1>🎲 Crazy 88 Invoer</h1>
 
-      <h3>Dubbele punten</h3>
-      <button onClick={toggleDoublePoints}>
-        {doublePoints ? 'Dubbele punten: AAN' : 'Dubbele punten: UIT'}
+      <button className={`toggle ${doublePoints ? 'active' : ''}`} onClick={toggleDoublePoints}>
+        🔁 Dubbele punten {doublePoints ? 'AAN' : 'UIT'}
       </button>
 
-      <h2>Scorebord</h2>
-      <ul>
-        {teamPoints
-          .sort((a, b) => b.total - a.total)
-          .map((t) => (
-            <li key={t.id}>
-              {t.name} ({t.category}): {t.total} punten
-            </li>
+      {!selectedAssignment ? (
+        <>
+          <h2>📋 Kies opdracht</h2>
+          <div className="grid">
+            {Array.from({ length: 88 }, (_, i) => (
+              <button key={i + 1} onClick={() => handleAssignmentClick(i + 1)}>
+                #{i + 1}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <h2>🧑‍🤝‍🧑 Kies team voor opdracht #{selectedAssignment}</h2>
+          {['AVFV', 'MR', 'JEM'].map((cat) => (
+            <div key={cat}>
+              <h3>{cat}</h3>
+              <div className="team-grid">
+                {teamByCategory(cat).map((team) => (
+                  <button key={team.id} onClick={() => handleTeamClick(team.id)}>
+                    ⭐ {team.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
-      </ul>
-
-      <h2>Statistieken</h2>
-      <p><strong>Beste categorie:</strong> {bestCategory()}</p>
-      <p><strong>Populairste opdracht:</strong> {mostPopularAssignment()}</p>
-      <p><strong>Totaal aantal scores:</strong> {scores.length}</p>
+          <button className="cancel" onClick={() => setSelectedAssignment(null)}>← Terug</button>
+        </>
+      )}
     </div>
   );
 };
