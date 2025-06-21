@@ -214,6 +214,148 @@ button:disabled {
   font-weight: bold;
 }
 
+/* Team Management Styles */
+.team-management-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.add-team-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-team-form input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.add-team-form select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+
+.teams-overview {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.teams-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.clear-all {
+  background: #f87171 !important;
+  color: white !important;
+}
+
+.clear-all:hover {
+  background: #ef4444 !important;
+}
+
+.category-section {
+  margin-bottom: 2rem;
+}
+
+.category-section h4 {
+  margin: 0 0 1rem 0;
+  color: #6b7280;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.team-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fafafa;
+}
+
+.team-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.team-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.team-actions button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.delete-btn {
+  background: #fca5a5 !important;
+}
+
+.delete-btn:hover {
+  background: #f87171 !important;
+}
+
+.edit-team-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.edit-team-form input {
+  padding: 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.edit-team-form select {
+  padding: 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+
+.edit-team-form button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.no-teams {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .navbar {
@@ -239,11 +381,25 @@ button:disabled {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
   
-  .timer-controls {
-    justify-content: center;
+  .team-display {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
   }
   
-  .game-controls {
-    justify-content: center;
+  .add-team-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .edit-team-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .teams-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
   }
 }

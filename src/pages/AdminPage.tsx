@@ -60,19 +60,25 @@ const AdminPage = () => {
     setCompletedAssignments(completed);
   };
 
-  const updateTimer = () => {
-    if (!config?.timer_is_running || !config.timer_start_time) return;
+  const updateTimer = async () => {
+    // Fetch latest config to get current timer state
+    const { data: latestConfig } = await supabase.from('config').select('*').single();
+    if (!latestConfig?.timer_is_running || !latestConfig.timer_start_time) {
+      setCurrentTime(latestConfig?.timer_duration || 0);
+      return;
+    }
     
-    const startTime = new Date(config.timer_start_time).getTime();
+    const startTime = new Date(latestConfig.timer_start_time).getTime();
     const now = new Date().getTime();
     const elapsed = Math.floor((now - startTime) / 1000);
-    const remaining = Math.max(0, config.timer_duration - elapsed);
+    const remaining = Math.max(0, latestConfig.timer_duration - elapsed);
     
     setCurrentTime(remaining);
     
-    if (remaining === 0) {
+    if (remaining === 0 && latestConfig.timer_is_running) {
       // Timer finished - auto stop
-      supabase.from('config').update({ timer_is_running: false }).eq('id', config.id);
+      await supabase.from('config').update({ timer_is_running: false }).eq('id', latestConfig.id);
+      setConfig({ ...latestConfig, timer_is_running: false });
     }
   };
 
