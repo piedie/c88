@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { Link } from "react-router-dom";
 
 export default function AdminPage() {
   const [teams, setTeams] = useState([]);
@@ -17,23 +18,35 @@ export default function AdminPage() {
     load();
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Teambeheer 👥</h2>
-      <input placeholder="Teamnaam" value={naam} onChange={(e) => setNaam(e.target.value)} />
+      <h2>🛠️ Teambeheer</h2>
+      <input
+        placeholder="Teamnaam"
+        value={naam}
+        onChange={(e) => setNaam(e.target.value)}
+      />
       <select value={categorie} onChange={(e) => setCategorie(e.target.value)}>
-        <option value="MR">MR</option>
         <option value="AVFV">AVFV</option>
+        <option value="MR">MR</option>
         <option value="JEM">JEM</option>
       </select>
       <button onClick={addTeam}>➕ Toevoegen</button>
+
+      <h3>Bestaande teams</h3>
       <ul>
-        {teams.map((team) => (
-          <li key={team.id}>{team.naam} ({team.categorie})</li>
+        {teams.map((t: any) => (
+          <li key={t.id}>{t.naam} ({t.categorie})</li>
         ))}
       </ul>
+
+      <Link to="/">
+        <button>⬅️ Terug naar start</button>
+      </Link>
     </div>
   );
 }
