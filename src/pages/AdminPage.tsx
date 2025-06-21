@@ -237,9 +237,23 @@ const AdminPage = () => {
 
   const gameState = getGameState();
   const canAssignPoints = gameState === 'running' || gameState === 'paused' || gameState === 'grace';
+
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getGameStateMessage = () => {
+    switch (gameState) {
+      case 'setup': return '⚙️ Stel eerst een timer in';
+      case 'ready': return '⏳ Klaar om te starten';
+      case 'running': return '🔥 Spel loopt!';
+      case 'paused': return '⏸️ Spel gepauzeerd';
+      case 'grace': return '⚡ Graceperiode (nog 5 min om punten bij te werken)';
+      case 'finished': return '🏁 Spel afgelopen - geen punten meer mogelijk';
+      default: return '';
+    }
   };
 
   const teamsByCategory = (category: string) => 
@@ -390,7 +404,7 @@ const AdminPage = () => {
                 disabled={!creativityTeam || !creativityAssignment || !canAssignPoints}
                 className="confirm"
               >
-                ✅ 5 Punten Toekennen
+                ✅ 5 Punten toekennen
               </button>
               <button 
                 onClick={() => {
