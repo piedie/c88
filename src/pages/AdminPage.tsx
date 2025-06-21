@@ -23,6 +23,8 @@ const AdminPage = () => {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [completedAssignments, setCompletedAssignments] = useState<number[]>([]);
   const [timerInput, setTimerInput] = useState('');
+  const [teamScores, setTeamScores] = useState<{[key: string]: number}>({});
+  const [currentTime, setCurrentTime] = useState(0);
   const [showCreativityModal, setShowCreativityModal] = useState(false);
   const [creativityTeam, setCreativityTeam] = useState<Team | null>(null);
   const [creativityAssignment, setCreativityAssignment] = useState('');
@@ -258,9 +260,10 @@ const AdminPage = () => {
           <button className={`toggle ${config.double_points_active ? 'active' : ''}`} onClick={toggleDoublePoints}>
             🔁 Dubbele punten {config.double_points_active ? 'AAN' : 'UIT'}
           </button>
-          <button className="creativity" onClick={() => setShowCreativityModal(true)}>
+          {/* Tijdelijk uitgeschakeld voor debugging */}
+          {/* <button className="creativity" onClick={() => setShowCreativityModal(true)}>
             🎨 Creativiteitspunten
-          </button>
+          </button> */}
           <button className="reset" onClick={resetGame}>
             🔄 Nieuw Spel Starten
           </button>
@@ -306,68 +309,6 @@ const AdminPage = () => {
             ← Terug
           </button>
         </>
-      )}
-
-      {/* Creativity Modal */}
-      {showCreativityModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>🎨 Creativiteitspunten Toekennen</h3>
-            <p>Geef 5 punten voor een extra creatieve uitvoering</p>
-            
-            <div className="modal-form">
-              <label>Team:</label>
-              <select 
-                value={creativityTeam?.id || ''} 
-                onChange={(e) => {
-                  const team = teams.find(t => t.id === e.target.value);
-                  setCreativityTeam(team || null);
-                }}
-              >
-                <option value="">Kies een team...</option>
-                {['AVFV', 'MR', 'JEM'].map(category => (
-                  <optgroup key={category} label={category}>
-                    {teamsByCategory(category).map(team => (
-                      <option key={team.id} value={team.id}>
-                        {team.name} ({teamScores[team.id] || 0} punten)
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-
-              <label>Opdracht nummer:</label>
-              <input
-                type="number"
-                min="1"
-                max="88"
-                placeholder="1-88"
-                value={creativityAssignment}
-                onChange={(e) => setCreativityAssignment(e.target.value)}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                onClick={handleCreativityPoints}
-                disabled={!creativityTeam || !creativityAssignment}
-                className="confirm"
-              >
-                ✅ 5 Punten Toekennen
-              </button>
-              <button 
-                onClick={() => {
-                  setShowCreativityModal(false);
-                  setCreativityTeam(null);
-                  setCreativityAssignment('');
-                }}
-                className="cancel"
-              >
-                ❌ Annuleren
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
