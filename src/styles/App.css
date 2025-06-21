@@ -104,6 +104,250 @@ h3 {
 }
 
 /* Team Categories Layout */
+/* Logbook Styles */
+.logbook-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.logbook-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.logbook-controls {
+  background: white;
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-controls label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.filter-controls select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+
+.refresh-btn {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+.refresh-btn:hover {
+  background: #059669 !important;
+}
+
+.logbook-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.log-entry {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-left: 4px solid #e5e7eb;
+}
+
+.entry-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.entry-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.entry-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+}
+
+.team-category {
+  background: #6366f1;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.team-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.entry-assignment {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+}
+
+.assignment-number {
+  background: #f3f4f6;
+  color: #1f2937;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.entry-points {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.normal-points {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.double-points {
+  background: #fef08a;
+  color: #a16207;
+}
+
+.creativity-points {
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.points-value {
+  font-weight: bold;
+}
+
+.entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.entry-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.time {
+  font-weight: 500;
+  color: #374151;
+}
+
+.date {
+  font-size: 0.75rem;
+}
+
+.delete-btn {
+  background: #fca5a5 !important;
+  color: #dc2626 !important;
+  padding: 0.4rem 0.6rem !important;
+  font-size: 0.9rem !important;
+  border-radius: 6px !important;
+}
+
+.delete-btn:hover {
+  background: #f87171 !important;
+}
+
+.no-entries {
+  background: white;
+  padding: 3rem;
+  text-align: center;
+  border-radius: 12px;
+  color: #6b7280;
+  font-style: italic;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.logbook-summary {
+  margin-top: 2rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .logbook-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .logbook-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .entry-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .entry-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .entry-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .entry-time {
+    align-items: flex-start;
+  }
+}
+
 .team-categories {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

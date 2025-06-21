@@ -183,6 +183,19 @@ const AdminPage = () => {
     const assignmentId = parseInt(creativityAssignment);
     if (isNaN(assignmentId) || assignmentId < 1 || assignmentId > 88) return;
     
+    // Check if this team already has points for this assignment
+    const { data: existingScores } = await supabase
+      .from('scores')
+      .select('*')
+      .eq('team_id', creativityTeam.id)
+      .eq('assignment_id', assignmentId)
+      .eq('game_session_id', config.game_session_id);
+    
+    if (existingScores && existingScores.length > 0) {
+      alert(`Team "${creativityTeam.name}" heeft al punten voor opdracht ${assignmentId}. Creativiteitspunten kunnen niet worden toegevoegd aan reeds voltooide opdrachten.`);
+      return;
+    }
+    
     await supabase.from('scores').insert([{
       team_id: creativityTeam.id,
       assignment_id: assignmentId,
@@ -404,7 +417,7 @@ const AdminPage = () => {
                 disabled={!creativityTeam || !creativityAssignment || !canAssignPoints}
                 className="confirm"
               >
-                ✅ 5 Punten toekennen
+                ✅ 5 Punten Toekennen
               </button>
               <button 
                 onClick={() => {
