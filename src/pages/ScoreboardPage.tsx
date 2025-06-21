@@ -29,7 +29,7 @@ const ScoreboardPage = () => {
   const [config, setConfig] = useState<Config | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [popularAssignments, setPopularAssignments] = useState<PopularAssignment[]>([]);
-  const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+  const [categoryStats, setCategoryStats] = useState<{[key: string]: {total: number, teams: number, average: number}}>({});
   const [totalAssignments, setTotalAssignments] = useState(0);
   const [uniqueAssignments, setUniqueAssignments] = useState(0);
 
@@ -121,11 +121,21 @@ const ScoreboardPage = () => {
       .slice(0, 5);
     setPopularAssignments(popular);
 
-    // Category stats
-    const catStats: {[key: string]: number} = {};
+    // Category stats - weighted by team count
+    const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
     teamsArray.forEach(team => {
-      catStats[team.category] = (catStats[team.category] || 0) + team.total_points;
+      if (!catStats[team.category]) {
+        catStats[team.category] = {total: 0, teams: 0, average: 0};
+      }
+      catStats[team.category].total += team.total_points;
+      catStats[team.category].teams += 1;
     });
+    
+    // Calculate averages
+    Object.keys(catStats).forEach(category => {
+      catStats[category].average = catStats[category].total / catStats[category].teams;
+    });
+    
     setCategoryStats(catStats);
   };
 
@@ -256,15 +266,21 @@ const ScoreboardPage = () => {
         </div>
 
         <div className="stat-card">
-          <h3>📊 Opleiding totalen</h3>
+          <h3>📊 Opleiding prestaties</h3>
           {Object.entries(categoryStats)
-            .sort(([,a], [,b]) => b - a)
-            .map(([category, points]) => (
-              <div key={category} className="category-total">
-                <span className="category-name">{category}</span>
-                <span className="category-points">{points} punten</span>
-              </div>
-            ))}
+            .sort(([,a], [,b]) => b.average - a.average)
+            .map(([category, stats]) => {
+              const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
+                                 category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
+              return (
+                <div key={category} className="category-total">
+                  <span className="category-name">{categoryName}</span>
+                  <span className="category-points">
+                    {stats.average.toFixed(1)} gem. ({stats.teams} teams)
+                  </span>
+                </div>
+              );
+            })}
         </div>
 
         <div className="stat-card">
