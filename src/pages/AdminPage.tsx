@@ -214,7 +214,29 @@ const AdminPage = () => {
     setSelectedTeam(null);
   };
 
-  const formatTime = (seconds: number) => {
+  // Game state logic
+  const getGameState = () => {
+    if (!config?.timer_duration) return 'setup'; // No timer set
+    if (config.timer_is_running) return 'running'; // Game is running
+    if (!config.timer_is_running && config.timer_start_time) {
+      // Game has been started before, check if within grace period
+      const startTime = new Date(config.timer_start_time).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
+      
+      if (remaining > 0) return 'paused'; // Game paused but time left
+      
+      // Game finished, check grace period (5 minutes = 300 seconds)
+      const graceElapsed = elapsed - config.timer_duration;
+      if (graceElapsed <= 300) return 'grace'; // Within 5 min grace period
+      return 'finished'; // Grace period over
+    }
+    return 'ready'; // Timer set but never started
+  };
+
+  const gameState = getGameState();
+  const canAssignPoints = gameState === 'running' || gameState === 'paused' || gameState === 'grace';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -238,6 +260,9 @@ const AdminPage = () => {
                 {formatTime(config.timer_is_running ? currentTime : config.timer_duration)}
               </span>
             )}
+            <div className={`game-state game-state-${gameState}`}>
+              {getGameStateMessage()}
+            </div>
           </div>
           <div className="timer-controls">
             <input
@@ -260,7 +285,7 @@ const AdminPage = () => {
           <button className={`toggle ${config.double_points_active ? 'active' : ''}`} onClick={toggleDoublePoints}>
             🔁 Dubbele punten {config.double_points_active ? 'AAN' : 'UIT'}
           </button>
-          <button className="creativity" onClick={() => setShowCreativityModal(true)}>
+          <button className="creativity" onClick={() => setShowCreativityModal(true)} disabled={!canAssignPoints}>
             🎨 Creativiteitspunten
           </button>
           <button className="reset" onClick={resetGame}>
@@ -272,18 +297,24 @@ const AdminPage = () => {
       {!selectedTeam ? (
         <>
           <h2>👥 Kies team</h2>
-          {['AVFV', 'MR', 'JEM'].map(category => (
-            <div key={category}>
-              <h3>{category}</h3>
-              <div className="team-grid">
-                {teamsByCategory(category).map(team => (
-                  <button key={team.id} onClick={() => handleTeamClick(team)}>
-                    ⭐ {team.name} ({teamScores[team.id] || 0} punten)
-                  </button>
-                ))}
+          <div className="team-categories">
+            {['AVFV', 'MR', 'JEM'].map(category => (
+              <div key={category} className="team-category-column">
+                <h3>{category}</h3>
+                <div className="team-column">
+                  {teamsByCategory(category).map(team => (
+                    <button 
+                      key={team.id} 
+                      onClick={() => handleTeamClick(team)}
+                      disabled={!canAssignPoints}
+                    >
+                      ⭐ {team.name} ({teamScores[team.id] || 0} punten)
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </>
       ) : (
         <>
@@ -356,7 +387,7 @@ const AdminPage = () => {
             <div className="modal-actions">
               <button 
                 onClick={handleCreativityPoints}
-                disabled={!creativityTeam || !creativityAssignment}
+                disabled={!creativityTeam || !creativityAssignment || !canAssignPoints}
                 className="confirm"
               >
                 ✅ 5 Punten Toekennen
