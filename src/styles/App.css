@@ -1191,6 +1191,10 @@ button:disabled {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .page-container {
+    padding: 0 1rem;
+  }
+  
   .navbar {
     padding: 1rem;
     flex-direction: column;
