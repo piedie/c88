@@ -196,7 +196,11 @@ const ScoreboardPage = () => {
   };
 
   const getUncompletedAssignments = () => {
-    const completed = new Set(recentActivity.map(a => a.assignment_id));
+    const completed = new Set();
+    recentActivity.forEach(activity => completed.add(activity.assignment_id));
+    // Also check popular assignments
+    popularAssignments.forEach(assignment => completed.add(assignment.assignment_id));
+    
     const uncompleted = [];
     for (let i = 1; i <= 88; i++) {
       if (!completed.has(i)) uncompleted.push(i);
@@ -226,6 +230,8 @@ const ScoreboardPage = () => {
   };
 
   const getMostActiveTeam = () => {
+    if (recentActivity.length === 0) return null;
+    
     const teamCounts: {[key: string]: {name: string, count: number}} = {};
     recentActivity.forEach(activity => {
       if (!teamCounts[activity.team_name]) {
@@ -234,7 +240,8 @@ const ScoreboardPage = () => {
       teamCounts[activity.team_name].count++;
     });
     
-    return Object.values(teamCounts).sort((a, b) => b.count - a.count)[0];
+    const sorted = Object.values(teamCounts).sort((a, b) => b.count - a.count);
+    return sorted.length > 0 ? sorted[0] : null;
   };
 
   if (!config) return <div className="loading">Laden...</div>;

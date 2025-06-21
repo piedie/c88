@@ -9,6 +9,13 @@ body {
   min-height: 100vh;
 }
 
+/* Container for wide pages */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
 /* Navigation */
 .navbar {
   background: white;
@@ -1189,6 +1196,7 @@ button:disabled {
   font-style: italic;
 }
 
+/* Responsive */
 /* Responsive */
 @media (max-width: 768px) {
   .page-container {
