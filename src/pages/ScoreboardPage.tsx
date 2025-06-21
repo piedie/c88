@@ -34,10 +34,11 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     const interval = setInterval(() => {
+      fetchData(); // Fetch fresh data including timer state
       updateTimer();
     }, 1000);
     return () => clearInterval(interval);
-  }, [config]); // Add config dependency
+  }, []);
 
   const fetchData = async () => {
     const { data: configData } = await supabase.from('config').select('*').single();
@@ -108,23 +109,16 @@ const ScoreboardPage = () => {
     setCategoryStats(catStats);
   };
 
-  const updateTimer = async () => {
+  const updateTimer = () => {
     if (!config?.timer_is_running || !config.timer_start_time) {
       setCurrentTime(config?.timer_duration || 0);
       return;
     }
     
-    // Fetch fresh config data
-    const { data: latestConfig } = await supabase.from('config').select('*').single();
-    if (!latestConfig?.timer_is_running || !latestConfig.timer_start_time) {
-      setCurrentTime(latestConfig?.timer_duration || 0);
-      return;
-    }
-    
-    const startTime = new Date(latestConfig.timer_start_time).getTime();
+    const startTime = new Date(config.timer_start_time).getTime();
     const now = new Date().getTime();
     const elapsed = Math.floor((now - startTime) / 1000);
-    const remaining = Math.max(0, latestConfig.timer_duration - elapsed);
+    const remaining = Math.max(0, config.timer_duration - elapsed);
     
     setCurrentTime(remaining);
   };

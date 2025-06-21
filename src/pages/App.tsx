@@ -36,7 +36,7 @@ const App = () => {
             className={currentPage === 'admin' ? 'nav-active' : ''}
             onClick={() => setCurrentPage('admin')}
           >
-            🎯 Admin/Jury
+            🎯 Jury
           </button>
           <button 
             className={currentPage === 'teams' ? 'nav-active' : ''}

@@ -346,7 +346,7 @@ const AdminPage = () => {
       </div>
 
       <div className="admin-controls">
-        <h2>🎯 Jury/admin controls</h2>
+        <h2>🎯 Jury controls</h2>
         
         <div className="timer-section">
           <h3>⏰ Timer</h3>
