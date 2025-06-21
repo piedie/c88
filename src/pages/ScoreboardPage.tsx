@@ -165,7 +165,15 @@ const ScoreboardPage = () => {
       const elapsed = Math.floor((now - startTime) / 1000);
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
+    } else if (config.timer_start_time) {
+      // Timer was started but is now stopped - check if time is up
+      const startTime = new Date(config.timer_start_time).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
+      setCurrentTime(remaining);
     } else {
+      // Timer never started
       setCurrentTime(config.timer_duration || 0);
     }
   };
@@ -178,9 +186,20 @@ const ScoreboardPage = () => {
 
   const getTimerStatus = () => {
     if (!config?.timer_duration) return 'Geen timer ingesteld';
-    if (config.timer_is_running) return 'Spel loopt';
-    if (currentTime <= 0) return 'Spel afgelopen';
-    return 'Spel gepauzeerd';
+    if (!config.timer_start_time) return 'Klaar om te starten';
+    
+    // Check if time is up
+    if (config.timer_start_time) {
+      const startTime = new Date(config.timer_start_time).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
+      
+      if (remaining <= 0) return '🏁 Het spel is afgelopen!';
+    }
+    
+    if (config.timer_is_running) return '🔥 Spel loopt!';
+    return '⏸️ Spel gepauzeerd';
   };
 
   const getTopTeamByCategory = (category: string) => {
