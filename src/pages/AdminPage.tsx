@@ -210,9 +210,20 @@ const AdminPage = () => {
   };
 
   const resetGame = async () => {
-    if (!confirm('Weet je zeker dat je het spel wilt resetten? Alle huidige data blijft bewaard maar er start een nieuw spel.')) return;
+    const keepTeams = confirm('Wil je de teams behouden?\n\n✅ JA = Teams blijven, scores worden gewist\n❌ NEE = Alles wordt gewist (teams én scores)');
+    
+    if (!confirm(`${keepTeams ? 'Teams behouden en' : 'Alles wissen en'} nieuw spel starten?`)) return;
     
     const newSessionId = crypto.randomUUID();
+    
+    if (keepTeams && config) {
+      // Keep teams but reset their session ID
+      await supabase
+        .from('teams')
+        .update({ game_session_id: newSessionId })
+        .eq('game_session_id', config.game_session_id);
+    }
+    
     await supabase
       .from('config')
       .update({
@@ -269,15 +280,73 @@ const AdminPage = () => {
     }
   };
 
+  const getFullCategoryName = (category: string) => {
+    switch (category) {
+      case 'JEM': return 'Junior Event Manager';
+      case 'MR': return 'Mediaredactie';  
+      case 'AVFV': return 'AV/Fotograaf';
+      default: return category;
+    }
+  };
+
   const teamsByCategory = (category: string) => 
     teams.filter(t => t.category === category);
 
   if (!config) return <div>Laden...</div>;
 
   return (
-    <div>
+    <div className="admin-layout">
+      <div className="main-content">
+        {!selectedTeam ? (
+          <>
+            <h2>👥 Kies team</h2>
+            <div className="team-categories">
+              {['AVFV', 'MR', 'JEM'].map(category => (
+                <div key={category} className="team-category-column">
+                  <h3>{getFullCategoryName(category)}</h3>
+                  <div className="team-column">
+                    {teamsByCategory(category).map(team => (
+                      <button 
+                        key={team.id} 
+                        onClick={() => handleTeamClick(team)}
+                        disabled={!canAssignPoints}
+                      >
+                        ⭐ {team.name} ({teamScores[team.id] || 0} punten)
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2>📋 Kies opdracht voor {selectedTeam.name}</h2>
+            <div className="grid">
+              {Array.from({ length: 88 }, (_, i) => {
+                const assignmentId = i + 1;
+                const isCompleted = completedAssignments.includes(assignmentId);
+                return (
+                  <button
+                    key={assignmentId}
+                    onClick={() => handleAssignmentClick(assignmentId)}
+                    disabled={isCompleted}
+                    className={isCompleted ? 'completed' : ''}
+                  >
+                    #{assignmentId}
+                  </button>
+                );
+              })}
+            </div>
+            <button className="cancel" onClick={() => setSelectedTeam(null)}>
+              ← Terug
+            </button>
+          </>
+        )}
+      </div>
+
       <div className="admin-controls">
-        <h2>🎯 Jury/Admin Controls</h2>
+        <h2>🎯 Jury/admin controls</h2>
         
         <div className="timer-section">
           <h3>⏰ Timer</h3>
@@ -297,8 +366,9 @@ const AdminPage = () => {
               placeholder="Minuten"
               value={timerInput}
               onChange={(e) => setTimerInput(e.target.value)}
+              disabled={config.timer_is_running}
             />
-            <button onClick={setTimer}>Tijd instellen</button>
+            <button onClick={setTimer} disabled={config.timer_is_running}>Tijd instellen</button>
             <button onClick={startTimer} disabled={!config.timer_duration || config.timer_is_running}>
               Start
             </button>
@@ -316,57 +386,10 @@ const AdminPage = () => {
             🎨 Creativiteitspunten
           </button>
           <button className="reset" onClick={resetGame}>
-            🔄 Nieuw Spel Starten
+            🔄 Nieuw spel starten
           </button>
         </div>
       </div>
-
-      {!selectedTeam ? (
-        <>
-          <h2>👥 Kies team</h2>
-          <div className="team-categories">
-            {['AVFV', 'MR', 'JEM'].map(category => (
-              <div key={category} className="team-category-column">
-                <h3>{category}</h3>
-                <div className="team-column">
-                  {teamsByCategory(category).map(team => (
-                    <button 
-                      key={team.id} 
-                      onClick={() => handleTeamClick(team)}
-                      disabled={!canAssignPoints}
-                    >
-                      ⭐ {team.name} ({teamScores[team.id] || 0} punten)
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <h2>📋 Kies opdracht voor {selectedTeam.name}</h2>
-          <div className="grid">
-            {Array.from({ length: 88 }, (_, i) => {
-              const assignmentId = i + 1;
-              const isCompleted = completedAssignments.includes(assignmentId);
-              return (
-                <button
-                  key={assignmentId}
-                  onClick={() => handleAssignmentClick(assignmentId)}
-                  disabled={isCompleted}
-                  className={isCompleted ? 'completed' : ''}
-                >
-                  #{assignmentId}
-                </button>
-              );
-            })}
-          </div>
-          <button className="cancel" onClick={() => setSelectedTeam(null)}>
-            ← Terug
-          </button>
-        </>
-      )}
 
       {/* Creativity Modal */}
       {showCreativityModal && (

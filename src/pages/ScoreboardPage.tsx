@@ -35,10 +35,9 @@ const ScoreboardPage = () => {
     fetchData();
     const interval = setInterval(() => {
       updateTimer();
-      fetchData(); // Refresh stats every second
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [config]); // Add config dependency
 
   const fetchData = async () => {
     const { data: configData } = await supabase.from('config').select('*').single();
