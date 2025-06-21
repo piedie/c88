@@ -42,7 +42,21 @@ const ScoreboardPage = () => {
 
   const fetchData = async () => {
     const { data: configData } = await supabase.from('config').select('*').single();
-    setConfig(configData);
+    
+    if (configData) {
+      setConfig(configData);
+      
+      // Immediately calculate timer value when we get fresh config
+      if (configData.timer_is_running && configData.timer_start_time) {
+        const startTime = new Date(configData.timer_start_time).getTime();
+        const now = new Date().getTime();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        const remaining = Math.max(0, configData.timer_duration - elapsed);
+        setCurrentTime(remaining);
+      } else {
+        setCurrentTime(configData.timer_duration || 0);
+      }
+    }
 
     if (!configData) return;
 
@@ -110,17 +124,17 @@ const ScoreboardPage = () => {
   };
 
   const updateTimer = () => {
-    if (!config?.timer_is_running || !config.timer_start_time) {
-      setCurrentTime(config?.timer_duration || 0);
-      return;
+    if (!config) return;
+    
+    if (config.timer_is_running && config.timer_start_time) {
+      const startTime = new Date(config.timer_start_time).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
+      setCurrentTime(remaining);
+    } else {
+      setCurrentTime(config.timer_duration || 0);
     }
-    
-    const startTime = new Date(config.timer_start_time).getTime();
-    const now = new Date().getTime();
-    const elapsed = Math.floor((now - startTime) / 1000);
-    const remaining = Math.max(0, config.timer_duration - elapsed);
-    
-    setCurrentTime(remaining);
   };
 
   const formatTime = (seconds: number) => {
