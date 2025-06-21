@@ -30,6 +30,8 @@ const ScoreboardPage = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [popularAssignments, setPopularAssignments] = useState<PopularAssignment[]>([]);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+  const [totalAssignments, setTotalAssignments] = useState(0);
+  const [uniqueAssignments, setUniqueAssignments] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -75,6 +77,7 @@ const ScoreboardPage = () => {
     // Process team statistics
     const teamStats: {[key: string]: Team} = {};
     const assignmentCounts: {[key: number]: number} = {};
+    const uniqueAssignmentIds = new Set<number>();
     
     scoreData?.forEach(score => {
       const teamId = score.team_id;
@@ -94,6 +97,7 @@ const ScoreboardPage = () => {
       
       teamStats[teamId].total_points += score.points;
       teamStats[teamId].assignments_completed += 1;
+      uniqueAssignmentIds.add(score.assignment_id);
       
       if (score.points === 5) {
         teamStats[teamId].creativity_points += score.points;
@@ -107,6 +111,8 @@ const ScoreboardPage = () => {
 
     const teamsArray = Object.values(teamStats).sort((a, b) => b.total_points - a.total_points);
     setTeams(teamsArray);
+    setTotalAssignments(scoreData?.length || 0);
+    setUniqueAssignments(uniqueAssignmentIds.size);
 
     // Popular assignments
     const popular = Object.entries(assignmentCounts)
@@ -169,6 +175,22 @@ const ScoreboardPage = () => {
         </div>
         <div className="timer-status">
           {getTimerStatus()}
+        </div>
+      </div>
+
+      {/* Live Stats Banner */}
+      <div className="live-stats-banner">
+        <div className="live-stat">
+          <span className="stat-number">{totalAssignments}</span>
+          <span className="stat-label">opdrachten gedaan!</span>
+        </div>
+        <div className="live-stat">
+          <span className="stat-number">{uniqueAssignments}</span>
+          <span className="stat-label">van de 88 unieke opdrachten</span>
+        </div>
+        <div className="live-stat">
+          <span className="stat-number">{88 - uniqueAssignments}</span>
+          <span className="stat-label">opdrachten nog te gaan</span>
         </div>
       </div>
 
