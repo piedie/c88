@@ -266,7 +266,7 @@ const ScoreboardPage = () => {
         </div>
 
         <div className="stat-card">
-          <h3>📊 Opleiding prestaties</h3>
+          <h3>📊 Opleiding prestaties (gemiddeld)</h3>
           {Object.entries(categoryStats)
             .sort(([,a], [,b]) => b.average - a.average)
             .map(([category, stats]) => {
@@ -278,6 +278,22 @@ const ScoreboardPage = () => {
                   <span className="category-points">
                     {stats.average.toFixed(1)} gem. ({stats.teams} teams)
                   </span>
+                </div>
+              );
+            })}
+        </div>
+
+        <div className="stat-card">
+          <h3>🏆 Opleiding totalen (absoluut)</h3>
+          {Object.entries(categoryStats)
+            .sort(([,a], [,b]) => b.total - a.total)
+            .map(([category, stats]) => {
+              const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
+                                 category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
+              return (
+                <div key={category} className="category-total">
+                  <span className="category-name">{categoryName}</span>
+                  <span className="category-points">{stats.total} punten</span>
                 </div>
               );
             })}
