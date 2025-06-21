@@ -32,6 +32,7 @@ const ScoreboardPage = () => {
   const [categoryStats, setCategoryStats] = useState<{[key: string]: {total: number, teams: number, average: number}}>({});
   const [totalAssignments, setTotalAssignments] = useState(0);
   const [uniqueAssignments, setUniqueAssignments] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -114,6 +115,16 @@ const ScoreboardPage = () => {
     setTotalAssignments(scoreData?.length || 0);
     setUniqueAssignments(uniqueAssignmentIds.size);
 
+    // Recent activity (last 10)
+    const recent = scoreData?.slice(-10).reverse().map(score => ({
+      assignment_id: score.assignment_id,
+      team_name: (score.teams as any).name,
+      team_category: (score.teams as any).category,
+      points: score.points,
+      created_at: score.created_at,
+    })) || [];
+    setRecentActivity(recent);
+
     // Popular assignments
     const popular = Object.entries(assignmentCounts)
       .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
@@ -182,6 +193,49 @@ const ScoreboardPage = () => {
     return Math.max(0, minutes);
   };
 
+  const getRecentActivity = (minutes: number) => {
+    if (!config?.timer_start_time) return [];
+    const cutoff = new Date(Date.now() - minutes * 60 * 1000);
+    return recentActivity.filter(activity => new Date(activity.created_at) > cutoff);
+  };
+
+  const getFastestTeam = () => {
+    if (!config?.timer_start_time || teams.length === 0) return null;
+    const gameStartTime = new Date(config.timer_start_time).getTime();
+    const now = new Date().getTime();
+    const minutesElapsed = Math.max(1, (now - gameStartTime) / (1000 * 60));
+    
+    return teams
+      .filter(t => t.assignments_completed > 0)
+      .map(t => ({...t, rate: t.assignments_completed / minutesElapsed}))
+      .sort((a, b) => b.rate - a.rate)[0];
+  };
+
+  const getUncompletedAssignments = () => {
+    const completed = new Set();
+    recentActivity.forEach(activity => completed.add(activity.assignment_id));
+    popularAssignments.forEach(assignment => completed.add(assignment.assignment_id));
+    
+    const uncompleted = [];
+    for (let i = 1; i <= 88; i++) {
+      if (!completed.has(i)) uncompleted.push(i);
+    }
+    return uncompleted.slice(0, 10);
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const minutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 60));
+    if (minutes < 1) return 'zojuist';
+    if (minutes < 60) return `${minutes}m geleden`;
+    return `${Math.floor(minutes / 60)}u geleden`;
+  };
+
+  const getPointTypeEmoji = (points: number) => {
+    if (points === 5) return '🎨';
+    if (points === 2) return '🔁';
+    return '⭐';
+  };
+
   if (!config) return <div className="loading">Laden...</div>;
 
   return (
@@ -203,16 +257,16 @@ const ScoreboardPage = () => {
           <span className="stat-label">minuten bezig</span>
         </div>
         <div className="live-stat">
+          <span className="stat-number">{getRecentActivity(10).length}</span>
+          <span className="stat-label">opdrachten laatste 10 min</span>
+        </div>
+        <div className="live-stat">
           <span className="stat-number">{totalAssignments}</span>
           <span className="stat-label">opdrachten gedaan!</span>
         </div>
         <div className="live-stat">
           <span className="stat-number">{uniqueAssignments}</span>
           <span className="stat-label">van de 88 unieke opdrachten</span>
-        </div>
-        <div className="live-stat">
-          <span className="stat-number">{88 - uniqueAssignments}</span>
-          <span className="stat-label">opdrachten nog te gaan</span>
         </div>
       </div>
 
@@ -235,6 +289,22 @@ const ScoreboardPage = () => {
 
       {/* Category Leaders */}
       <div className="stats-grid">
+        <div className="stat-card">
+          <h3>🚀 Snelste team</h3>
+          {(() => {
+            const fastest = getFastestTeam();
+            return fastest ? (
+              <div className="fastest-team">
+                <div className="team-name">{fastest.name}</div>
+                <div className="team-rate">{fastest.rate.toFixed(1)} opdrachten/minuut</div>
+                <div className="team-total">{fastest.assignments_completed} opdrachten gedaan</div>
+              </div>
+            ) : (
+              <div className="no-data">Spel nog niet gestart</div>
+            );
+          })()}
+        </div>
+
         <div className="stat-card">
           <h3>👑 Opleiding leiders</h3>
           {['AVFV', 'MR', 'JEM'].map(category => {
