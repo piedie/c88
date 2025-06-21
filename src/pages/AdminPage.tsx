@@ -25,6 +25,7 @@ const AdminPage = () => {
   const [timerInput, setTimerInput] = useState('');
   const [teamScores, setTeamScores] = useState<{[key: string]: number}>({});
   const [currentTime, setCurrentTime] = useState(0);
+  const [pausedTime, setPausedTime] = useState(0);
   const [showCreativityModal, setShowCreativityModal] = useState(false);
   const [creativityTeam, setCreativityTeam] = useState<Team | null>(null);
   const [creativityAssignment, setCreativityAssignment] = useState('');
@@ -166,12 +167,51 @@ const AdminPage = () => {
     fetchData();
   };
 
+  const pauseTimer = async () => {
+    if (!config) return;
+    
+    // Calculate how much time has elapsed and store it
+    const startTime = new Date(config.timer_start_time!).getTime();
+    const now = new Date().getTime();
+    const elapsed = Math.floor((now - startTime) / 1000);
+    const remaining = Math.max(0, config.timer_duration - elapsed);
+    
+    await supabase
+      .from('config')
+      .update({ 
+        timer_is_running: false,
+        timer_duration: remaining // Store remaining time
+      })
+      .eq('id', config.id);
+    
+    fetchData();
+  };
+
+  const resumeTimer = async () => {
+    if (!config) return;
+    
+    await supabase
+      .from('config')
+      .update({ 
+        timer_is_running: true,
+        timer_start_time: new Date().toISOString()
+        // timer_duration stays the same (remaining time from pause)
+      })
+      .eq('id', config.id);
+    
+    fetchData();
+  };
+
   const stopTimer = async () => {
     if (!config) return;
     
     await supabase
       .from('config')
-      .update({ timer_is_running: false })
+      .update({ 
+        timer_is_running: false,
+        timer_start_time: null,
+        timer_duration: 0 // Full reset
+      })
       .eq('id', config.id);
     
     fetchData();
@@ -372,8 +412,14 @@ const AdminPage = () => {
             <button onClick={startTimer} disabled={!config.timer_duration || config.timer_is_running}>
               Start
             </button>
-            <button onClick={stopTimer} disabled={!config.timer_is_running}>
-              Stop
+            <button onClick={pauseTimer} disabled={!config.timer_is_running}>
+              ⏸️ Pauze
+            </button>
+            <button onClick={resumeTimer} disabled={config.timer_is_running || !config.timer_start_time}>
+              ▶️ Hervat
+            </button>
+            <button onClick={stopTimer} disabled={!config.timer_duration && !config.timer_start_time}>
+              ⏹️ Stop
             </button>
           </div>
         </div>
