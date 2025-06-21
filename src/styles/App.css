@@ -449,19 +449,30 @@ h3 {
   }
 }
 
+/* Scoreboard Styles */
+.scoreboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
 .rankings-section {
   margin-bottom: 3rem;
 }
 
 .rankings-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .rank-card {
   background: white;
-  padding: 1.5rem;
+  padding: 1.2rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -490,10 +501,10 @@ h3 {
 }
 
 .rank-number {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: bold;
   color: #1f2937;
-  min-width: 60px;
+  min-width: 50px;
   text-align: center;
 }
 
@@ -502,20 +513,40 @@ h3 {
 }
 
 .team-name {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: bold;
   color: #1f2937;
 }
 
 .team-category {
   color: #6b7280;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .team-score {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: bold;
   color: #059669;
+}
+
+@media (max-width: 768px) {
+  .rankings-grid {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  
+  .rank-card {
+    padding: 1rem;
+  }
+  
+  .rank-number {
+    font-size: 1.5rem;
+    min-width: 40px;
+  }
+  
+  .team-score {
+    font-size: 1.5rem;
+  }
 }
 
 .stats-grid {
