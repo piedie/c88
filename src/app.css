@@ -1,0 +1,18 @@
+button {
+  margin: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  font-weight: bold;
+}
+button:hover {
+  background: #e0e0e0;
+}
+input, select {
+  margin: 6px;
+  padding: 8px;
+  font-size: 1rem;
+}
