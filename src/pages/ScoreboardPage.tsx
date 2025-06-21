@@ -164,6 +164,14 @@ const ScoreboardPage = () => {
     return teams.sort((a, b) => b.creativity_points - a.creativity_points)[0];
   };
 
+  const getGameDuration = () => {
+    if (!config?.timer_start_time) return 0;
+    const startTime = new Date(config.timer_start_time).getTime();
+    const now = new Date().getTime();
+    const minutes = Math.floor((now - startTime) / (1000 * 60));
+    return Math.max(0, minutes);
+  };
+
   if (!config) return <div className="loading">Laden...</div>;
 
   return (
@@ -180,6 +188,10 @@ const ScoreboardPage = () => {
 
       {/* Live Stats Banner */}
       <div className="live-stats-banner">
+        <div className="live-stat">
+          <span className="stat-number">{getGameDuration()}</span>
+          <span className="stat-label">minuten bezig</span>
+        </div>
         <div className="live-stat">
           <span className="stat-number">{totalAssignments}</span>
           <span className="stat-label">opdrachten gedaan!</span>
