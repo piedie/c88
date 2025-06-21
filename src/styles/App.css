@@ -687,6 +687,35 @@ h3 {
   font-style: italic;
 }
 
+/* Tempo Stats */
+.tempo-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tempo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tempo-item:last-child {
+  border-bottom: none;
+}
+
+.tempo-label {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.tempo-value {
+  color: #059669;
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
   .live-stats-banner {
     flex-direction: column;
@@ -699,6 +728,12 @@ h3 {
   }
   
   .activity-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .tempo-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;

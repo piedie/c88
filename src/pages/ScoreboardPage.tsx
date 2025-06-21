@@ -211,10 +211,30 @@ const ScoreboardPage = () => {
     return `${Math.floor(minutes / 60)}u geleden`;
   };
 
-  const getPointTypeEmoji = (points: number) => {
-    if (points === 5) return '🎨';
-    if (points === 2) return '🔁';
-    return '⭐';
+  const getGameDuration = () => {
+    if (!config?.timer_start_time) return null;
+    const startTime = new Date(config.timer_start_time).getTime();
+    const now = new Date().getTime();
+    const minutes = Math.floor((now - startTime) / (1000 * 60));
+    return minutes;
+  };
+
+  const getRecentActivity = (minutes: number) => {
+    if (!config?.timer_start_time) return [];
+    const cutoff = new Date(Date.now() - minutes * 60 * 1000);
+    return recentActivity.filter(activity => new Date(activity.created_at) > cutoff);
+  };
+
+  const getMostActiveTeam = () => {
+    const teamCounts: {[key: string]: {name: string, count: number}} = {};
+    recentActivity.forEach(activity => {
+      if (!teamCounts[activity.team_name]) {
+        teamCounts[activity.team_name] = {name: activity.team_name, count: 0};
+      }
+      teamCounts[activity.team_name].count++;
+    });
+    
+    return Object.values(teamCounts).sort((a, b) => b.count - a.count)[0];
   };
 
   if (!config) return <div className="loading">Laden...</div>;
@@ -234,16 +254,20 @@ const ScoreboardPage = () => {
       {/* Live Stats Banner */}
       <div className="live-stats-banner">
         <div className="live-stat">
+          <span className="stat-number">{gameDuration || 0}</span>
+          <span className="stat-label">minuten bezig</span>
+        </div>
+        <div className="live-stat">
+          <span className="stat-number">{recentTenMin.length}</span>
+          <span className="stat-label">opdrachten laatste 10 min</span>
+        </div>
+        <div className="live-stat">
           <span className="stat-number">{totalAssignments}</span>
           <span className="stat-label">opdrachten gedaan!</span>
         </div>
         <div className="live-stat">
           <span className="stat-number">{uniqueAssignments}</span>
           <span className="stat-label">van de 88 unieke opdrachten</span>
-        </div>
-        <div className="live-stat">
-          <span className="stat-number">{88 - uniqueAssignments}</span>
-          <span className="stat-label">opdrachten nog te gaan</span>
         </div>
       </div>
 
@@ -266,6 +290,32 @@ const ScoreboardPage = () => {
 
       {/* Category Leaders */}
       <div className="stats-grid">
+        <div className="stat-card">
+          <h3>⏱️ Tempo statistieken</h3>
+          <div className="tempo-stats">
+            <div className="tempo-item">
+              <span className="tempo-label">Spel loopt al:</span>
+              <span className="tempo-value">{gameDuration || 0} minuten</span>
+            </div>
+            <div className="tempo-item">
+              <span className="tempo-label">Laatste 10 minuten:</span>
+              <span className="tempo-value">{recentTenMin.length} opdrachten</span>
+            </div>
+            {mostActive && (
+              <div className="tempo-item">
+                <span className="tempo-label">Meest actieve team:</span>
+                <span className="tempo-value">{mostActive.name} ({mostActive.count}× actief)</span>
+              </div>
+            )}
+            <div className="tempo-item">
+              <span className="tempo-label">Gemiddeld tempo:</span>
+              <span className="tempo-value">
+                {gameDuration ? (totalAssignments / gameDuration).toFixed(1) : '0'} opdrachten/min
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div className="stat-card">
           <h3>👑 Opleiding Leiders</h3>
           {['AVFV', 'MR', 'JEM'].map(category => {

@@ -108,8 +108,8 @@ const TeamManagement = () => {
   const categories = ['AVFV', 'MR', 'JEM'];
 
   return (
-    <div>
-      <h2>👥 Team Management</h2>
+    <div className="page-container">
+      <h2>👥 Team management</h2>
       
       <div className="team-management-section">
         <h3>➕ Nieuw Team Toevoegen</h3>

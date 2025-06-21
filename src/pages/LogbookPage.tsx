@@ -121,7 +121,7 @@ const LogbookPage = () => {
   if (loading) return <div>Laden...</div>;
 
   return (
-    <div>
+    <div className="page-container">
       <div className="logbook-header">
         <h2>📋 Logboek</h2>
         <div className="logbook-stats">
