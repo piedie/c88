@@ -3,7 +3,7 @@ import AdminPage from './AdminPage';
 import TeamManagement from './TeamManagement';
 import ScoreboardPage from './ScoreboardPage';
 import LogbookPage from './LogbookPage';
-import './App.css';
+import '../styles/App.css';
 
 type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook';
 
