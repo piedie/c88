@@ -136,9 +136,9 @@ const LogbookPage = () => {
 
       <div className="logbook-controls">
         <div className="filter-controls">
-          <label>Filter per categorie:</label>
+          <label>Filter per opleiding:</label>
           <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-            <option value="all">Alle categorieën</option>
+            <option value="all">Alle opleidingen</option>
             <option value="AVFV">AVFV</option>
             <option value="MR">MR</option>
             <option value="JEM">JEM</option>

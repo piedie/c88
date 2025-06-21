@@ -109,16 +109,23 @@ const ScoreboardPage = () => {
     setCategoryStats(catStats);
   };
 
-  const updateTimer = () => {
+  const updateTimer = async () => {
     if (!config?.timer_is_running || !config.timer_start_time) {
       setCurrentTime(config?.timer_duration || 0);
       return;
     }
     
-    const startTime = new Date(config.timer_start_time).getTime();
+    // Fetch fresh config data
+    const { data: latestConfig } = await supabase.from('config').select('*').single();
+    if (!latestConfig?.timer_is_running || !latestConfig.timer_start_time) {
+      setCurrentTime(latestConfig?.timer_duration || 0);
+      return;
+    }
+    
+    const startTime = new Date(latestConfig.timer_start_time).getTime();
     const now = new Date().getTime();
     const elapsed = Math.floor((now - startTime) / 1000);
-    const remaining = Math.max(0, config.timer_duration - elapsed);
+    const remaining = Math.max(0, latestConfig.timer_duration - elapsed);
     
     setCurrentTime(remaining);
   };
@@ -178,7 +185,7 @@ const ScoreboardPage = () => {
       {/* Category Leaders */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>👑 Categorie Leiders</h3>
+          <h3>👑 Opleiding Leiders</h3>
           {['AVFV', 'MR', 'JEM'].map(category => {
             const leader = getTopTeamByCategory(category);
             return (
@@ -208,7 +215,7 @@ const ScoreboardPage = () => {
         </div>
 
         <div className="stat-card">
-          <h3>📊 Categorie Totalen</h3>
+          <h3>📊 Opleiding Totalen</h3>
           {Object.entries(categoryStats)
             .sort(([,a], [,b]) => b - a)
             .map(([category, points]) => (
