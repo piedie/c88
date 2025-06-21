@@ -24,12 +24,23 @@ interface PopularAssignment {
   completion_count: number;
 }
 
+interface RecentActivity {
+  assignment_id: number;
+  team_name: string;
+  team_category: string;
+  points: number;
+  created_at: string;
+}
+
 const ScoreboardPage = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [popularAssignments, setPopularAssignments] = useState<PopularAssignment[]>([]);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [totalAssignments, setTotalAssignments] = useState(0);
+  const [uniqueAssignments, setUniqueAssignments] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -75,6 +86,7 @@ const ScoreboardPage = () => {
     // Process team statistics
     const teamStats: {[key: string]: Team} = {};
     const assignmentCounts: {[key: number]: number} = {};
+    const uniqueAssignmentIds = new Set<number>();
     
     scoreData?.forEach(score => {
       const teamId = score.team_id;
@@ -94,6 +106,7 @@ const ScoreboardPage = () => {
       
       teamStats[teamId].total_points += score.points;
       teamStats[teamId].assignments_completed += 1;
+      uniqueAssignmentIds.add(score.assignment_id);
       
       if (score.points === 5) {
         teamStats[teamId].creativity_points += score.points;
@@ -107,6 +120,18 @@ const ScoreboardPage = () => {
 
     const teamsArray = Object.values(teamStats).sort((a, b) => b.total_points - a.total_points);
     setTeams(teamsArray);
+    setTotalAssignments(scoreData?.length || 0);
+    setUniqueAssignments(uniqueAssignmentIds.size);
+
+    // Recent activity (last 10)
+    const recent: RecentActivity[] = scoreData?.slice(-10).reverse().map(score => ({
+      assignment_id: score.assignment_id,
+      team_name: (score.teams as any).name,
+      team_category: (score.teams as any).category,
+      points: score.points,
+      created_at: score.created_at,
+    })) || [];
+    setRecentActivity(recent);
 
     // Popular assignments
     const popular = Object.entries(assignmentCounts)
@@ -158,6 +183,40 @@ const ScoreboardPage = () => {
     return teams.sort((a, b) => b.creativity_points - a.creativity_points)[0];
   };
 
+  const getFastestTeam = () => {
+    if (!config?.timer_start_time || teams.length === 0) return null;
+    const gameStartTime = new Date(config.timer_start_time).getTime();
+    const now = new Date().getTime();
+    const minutesElapsed = Math.max(1, (now - gameStartTime) / (1000 * 60));
+    
+    return teams
+      .filter(t => t.assignments_completed > 0)
+      .map(t => ({...t, rate: t.assignments_completed / minutesElapsed}))
+      .sort((a, b) => b.rate - a.rate)[0];
+  };
+
+  const getUncompletedAssignments = () => {
+    const completed = new Set(recentActivity.map(a => a.assignment_id));
+    const uncompleted = [];
+    for (let i = 1; i <= 88; i++) {
+      if (!completed.has(i)) uncompleted.push(i);
+    }
+    return uncompleted.slice(0, 10); // Show first 10
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const minutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 60));
+    if (minutes < 1) return 'zojuist';
+    if (minutes < 60) return `${minutes}m geleden`;
+    return `${Math.floor(minutes / 60)}u geleden`;
+  };
+
+  const getPointTypeEmoji = (points: number) => {
+    if (points === 5) return '🎨';
+    if (points === 2) return '🔁';
+    return '⭐';
+  };
+
   if (!config) return <div className="loading">Laden...</div>;
 
   return (
@@ -169,6 +228,22 @@ const ScoreboardPage = () => {
         </div>
         <div className="timer-status">
           {getTimerStatus()}
+        </div>
+      </div>
+
+      {/* Live Stats Banner */}
+      <div className="live-stats-banner">
+        <div className="live-stat">
+          <span className="stat-number">{totalAssignments}</span>
+          <span className="stat-label">opdrachten gedaan!</span>
+        </div>
+        <div className="live-stat">
+          <span className="stat-number">{uniqueAssignments}</span>
+          <span className="stat-label">van de 88 unieke opdrachten</span>
+        </div>
+        <div className="live-stat">
+          <span className="stat-number">{88 - uniqueAssignments}</span>
+          <span className="stat-label">opdrachten nog te gaan</span>
         </div>
       </div>
 
