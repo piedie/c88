@@ -39,11 +39,15 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Timer updates every second
-    const timerInterval = setInterval(updateTimer, 1000);
+    // Timer updates every second for smooth countdown
+    const timerInterval = setInterval(() => {
+      updateTimer();
+    }, 1000);
     
-    // Data refresh every 5 seconds (less frequent to prevent flickering)
-    const dataInterval = setInterval(fetchData, 5000);
+    // Data refresh every 10 seconds (announcements, scores, etc.)
+    const dataInterval = setInterval(() => {
+      fetchData();
+    }, 10000);
     
     return () => {
       clearInterval(timerInterval);
