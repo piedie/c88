@@ -53,14 +53,15 @@ const ScoreboardPage = () => {
       clearInterval(timerInterval);
       clearInterval(dataInterval);
     };
-  }, []);
+  }, [config]); // Add config dependency so timer updates when config changes
 
   const fetchData = async () => {
     const { data: configData } = await supabase.from('config').select('*').single();
     
     if (configData) {
       setConfig(configData);
-      // Don't calculate timer here - let updateTimer handle it every second
+      // Trigger immediate timer update when config changes
+      setTimeout(() => updateTimer(), 0);
     }
 
     if (!configData) return;
