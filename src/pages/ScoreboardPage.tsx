@@ -60,17 +60,7 @@ const ScoreboardPage = () => {
     
     if (configData) {
       setConfig(configData);
-      
-      // Immediately calculate timer value when we get fresh config
-      if (configData.timer_is_running && configData.timer_start_time) {
-        const startTime = new Date(configData.timer_start_time).getTime();
-        const now = new Date().getTime();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        const remaining = Math.max(0, configData.timer_duration - elapsed);
-        setCurrentTime(remaining);
-      } else {
-        setCurrentTime(configData.timer_duration || 0);
-      }
+      // Don't calculate timer here - let updateTimer handle it every second
     }
 
     if (!configData) return;
@@ -165,6 +155,7 @@ const ScoreboardPage = () => {
   const updateTimer = () => {
     if (!config) return;
     
+    // Always calculate fresh from current time, regardless of when config was fetched
     if (config.timer_is_running && config.timer_start_time) {
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
@@ -172,14 +163,14 @@ const ScoreboardPage = () => {
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else if (config.timer_start_time) {
-      // Timer was started but is now stopped/paused - calculate remaining time
+      // Timer was started but is now paused - calculate remaining from when it was paused
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else {
-      // Timer never started - show full duration
+      // Timer never started
       setCurrentTime(config.timer_duration || 0);
     }
   };
