@@ -39,10 +39,10 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Data refresh every 10 seconds (announcements, scores, etc.)
+    // Data refresh every 30 seconds to prevent flickering
     const dataInterval = setInterval(() => {
       fetchData();
-    }, 10000);
+    }, 30000);
     
     return () => {
       clearInterval(dataInterval);
@@ -122,7 +122,18 @@ const ScoreboardPage = () => {
       assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
     });
 
-    const teamsArray = Object.values(teamStats).sort((a, b) => b.total_points - a.total_points);
+    const teamsArray = Object.values(teamStats).sort((a, b) => {
+      // Primary sort: total points (descending)
+      if (b.total_points !== a.total_points) {
+        return b.total_points - a.total_points;
+      }
+      // Secondary sort: assignments completed (descending) 
+      if (b.assignments_completed !== a.assignments_completed) {
+        return b.assignments_completed - a.assignments_completed;
+      }
+      // Tertiary sort: alphabetical by name
+      return a.name.localeCompare(b.name);
+    });
     setTeams(teamsArray);
     setTotalAssignments(scoreData?.length || 0);
     setUniqueAssignments(uniqueAssignmentIds.size);
