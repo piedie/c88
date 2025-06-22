@@ -32,9 +32,9 @@ const ScoreboardPage = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [popularAssignments, setPopularAssignments] = useState<PopularAssignment[]>([]);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: {total: number, teams: number, average: number}}>({});
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [totalAssignments, setTotalAssignments] = useState(0);
   const [uniqueAssignments, setUniqueAssignments] = useState(0);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -61,21 +61,8 @@ const ScoreboardPage = () => {
     if (configData) {
       setConfig(configData);
       
-      // Update timer data separately for smooth updates
-      setTimerData({
-        duration: configData.timer_duration || 0,
-        startTime: configData.timer_start_time,
-        isRunning: configData.timer_is_running || false
-      });
-      
-      // Calculate initial timer value
+      // Immediately calculate timer value when we get fresh config
       if (configData.timer_is_running && configData.timer_start_time) {
-        const startTime = new Date(configData.timer_start_time).getTime();
-        const now = new Date().getTime();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        const remaining = Math.max(0, configData.timer_duration - elapsed);
-        setCurrentTime(remaining);
-      } else if (configData.timer_start_time) {
         const startTime = new Date(configData.timer_start_time).getTime();
         const now = new Date().getTime();
         const elapsed = Math.floor((now - startTime) / 1000);
@@ -176,22 +163,24 @@ const ScoreboardPage = () => {
   };
 
   const updateTimer = () => {
-    if (timerData.isRunning && timerData.startTime) {
-      const startTime = new Date(timerData.startTime).getTime();
+    if (!config) return;
+    
+    if (config.timer_is_running && config.timer_start_time) {
+      const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, timerData.duration - elapsed);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
-    } else if (timerData.startTime) {
+    } else if (config.timer_start_time) {
       // Timer was started but is now stopped/paused - calculate remaining time
-      const startTime = new Date(timerData.startTime).getTime();
+      const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, timerData.duration - elapsed);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else {
       // Timer never started - show full duration
-      setCurrentTime(timerData.duration || 0);
+      setCurrentTime(config.timer_duration || 0);
     }
   };
 
@@ -202,20 +191,20 @@ const ScoreboardPage = () => {
   };
 
   const getTimerStatus = () => {
-    if (!timerData.duration) return 'Geen timer ingesteld';
-    if (!timerData.startTime) return 'Klaar om te starten';
+    if (!config?.timer_duration) return 'Geen timer ingesteld';
+    if (!config.timer_start_time) return 'Klaar om te starten';
     
     // Check if time is up
-    if (timerData.startTime) {
-      const startTime = new Date(timerData.startTime).getTime();
+    if (config.timer_start_time) {
+      const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, timerData.duration - elapsed);
+      const remaining = Math.max(0, config.timer_duration - elapsed);
       
       if (remaining <= 0) return '🏁 Het spel is afgelopen!';
     }
     
-    if (timerData.isRunning) return '🔥 Spel loopt!';
+    if (config.timer_is_running) return '🔥 Spel loopt!';
     return '⏸️ Spel gepauzeerd';
   };
 
@@ -265,19 +254,6 @@ const ScoreboardPage = () => {
     return uncompleted.slice(0, 10);
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const minutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 60));
-    if (minutes < 1) return 'zojuist';
-    if (minutes < 60) return `${minutes}m geleden`;
-    return `${Math.floor(minutes / 60)}u geleden`;
-  };
-
-  const getPointTypeEmoji = (points: number) => {
-    if (points === 5) return '🎨';
-    if (points === 2) return '🔁';
-    return '⭐';
-  };
-
   const getMomentumLeader = () => {
     if (!config?.timer_start_time) return null;
     
@@ -293,6 +269,19 @@ const ScoreboardPage = () => {
     
     const sorted = Object.entries(recentTeamActivity).sort(([,a], [,b]) => b - a);
     return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1] } : null;
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const minutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 60));
+    if (minutes < 1) return 'zojuist';
+    if (minutes < 60) return `${minutes}m geleden`;
+    return `${Math.floor(minutes / 60)}u geleden`;
+  };
+
+  const getPointTypeEmoji = (points: number) => {
+    if (points === 5) return '🎨';
+    if (points === 2) return '🔁';
+    return '⭐';
   };
 
   const exportToPDF = () => {
@@ -337,7 +326,7 @@ const ScoreboardPage = () => {
       {/* Timer Display */}
       <div className="timer-hero">
         <div className="timer-display-large">
-          {timerData.duration > 0 ? formatTime(currentTime) : '--:--'}
+          {config.timer_duration > 0 ? formatTime(currentTime) : '--:--'}
         </div>
         <div className="timer-status">
           {getTimerStatus()}
@@ -381,8 +370,25 @@ const ScoreboardPage = () => {
         </div>
       </div>
 
-      {/* Category Leaders */}
+      {/* Enhanced Stats Grid */}
       <div className="stats-grid">
+        <div className="stat-card">
+          <h3>👑 Opleiding leiders</h3>
+          {['AVFV', 'MR', 'JEM'].map(category => {
+            const leader = getTopTeamByCategory(category);
+            const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
+                               category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
+            return (
+              <div key={category} className="category-leader">
+                <span className="category-name">{categoryName}</span>
+                <span className="leader-info">
+                  {leader ? `${leader.name} (${leader.total_points} punten)` : 'Geen teams'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
         <div className="stat-card">
           <h3>🚀 Snelste team</h3>
           {(() => {
@@ -400,6 +406,21 @@ const ScoreboardPage = () => {
         </div>
 
         <div className="stat-card">
+          <h3>🎨 Meest creatief</h3>
+          {(() => {
+            const creativityLeader = getBestCreativityTeam();
+            return creativityLeader && creativityLeader.creativity_points > 0 ? (
+              <div className="creativity-leader">
+                <div className="leader-name">{creativityLeader.name}</div>
+                <div className="creativity-score">{creativityLeader.creativity_points} creativiteitspunten</div>
+              </div>
+            ) : (
+              <div className="no-data">Nog geen creativiteitspunten</div>
+            );
+          })()}
+        </div>
+
+        <div className="stat-card">
           <h3>🔥 Momentum meter</h3>
           {(() => {
             const momentum = getMomentumLeader();
@@ -411,36 +432,6 @@ const ScoreboardPage = () => {
               </div>
             ) : (
               <div className="no-data">Geen recente activiteit</div>
-            );
-          })()}
-        </div>
-
-        <div className="stat-card">
-          <h3>👑 Opleiding leiders</h3>
-          {['AVFV', 'MR', 'JEM'].map(category => {
-            const leader = getTopTeamByCategory(category);
-            return (
-              <div key={category} className="category-leader">
-                <span className="category-name">{category}</span>
-                <span className="leader-info">
-                  {leader ? `${leader.name} (${leader.total_points} punten)` : 'Geen teams'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="stat-card">
-          <h3>🎨 Meest creatief</h3>
-          {(() => {
-            const creativityLeader = getBestCreativityTeam();
-            return creativityLeader && creativityLeader.creativity_points > 0 ? (
-              <div className="creativity-leader">
-                <div className="leader-name">{creativityLeader.name}</div>
-                <div className="creativity-score">{creativityLeader.creativity_points} creativiteitspunten</div>
-              </div>
-            ) : (
-              <div className="no-data">Nog geen creativiteitspunten toegekend</div>
             );
           })()}
         </div>
@@ -481,15 +472,55 @@ const ScoreboardPage = () => {
 
         <div className="stat-card">
           <h3>🔥 Populairste opdrachten</h3>
-          {popularAssignments.length > 0 ? popularAssignments.map((assignment, index) => (
+          {popularAssignments.length > 0 ? popularAssignments.slice(0, 5).map((assignment, index) => (
             <div key={assignment.assignment_id} className="popular-assignment">
               <span className="assignment-rank">#{index + 1}</span>
               <span className="assignment-number">Opdracht {assignment.assignment_id}</span>
-              <span className="completion-count">{assignment.completion_count}× voltooid</span>
+              <span className="completion-count">{assignment.completion_count}× gedaan</span>
             </div>
           )) : (
             <div className="no-data">Nog geen opdrachten voltooid</div>
           )}
+        </div>
+
+        <div className="stat-card">
+          <h3>⚡ Live activiteit</h3>
+          <div className="recent-activity">
+            {recentActivity.length > 0 ? recentActivity.slice(0, 5).map((activity, index) => (
+              <div key={index} className="activity-item">
+                <span className="activity-emoji">{getPointTypeEmoji(activity.points)}</span>
+                <span className="activity-text">
+                  <strong>{activity.team_name}</strong> deed opdracht {activity.assignment_id}
+                </span>
+                <span className="activity-time">{formatTimeAgo(activity.created_at)}</span>
+              </div>
+            )) : (
+              <div className="no-data">Nog geen activiteit</div>
+            )}
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <h3>📝 Nog te doen</h3>
+          <div className="uncompleted-assignments">
+            {(() => {
+              const uncompleted = getUncompletedAssignments();
+              return uncompleted.length > 0 ? (
+                <>
+                  <div className="uncompleted-list">
+                    {uncompleted.map(id => (
+                      <span key={id} className="uncompleted-number">#{id}</span>
+                    ))}
+                  </div>
+                  {uncompleted.length >= 10 && (
+                    <div className="uncompleted-summary">En nog meer...</div>
+                  )}
+                </>
+              ) : (
+                <div className="no-data">Alle opdrachten gedaan! 🎉</div>
+              );
+            })()}
+          </div>
         </div>
       </div>
 
