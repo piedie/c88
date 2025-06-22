@@ -31,9 +31,27 @@ const AdminPage = () => {
   const [creativityAssignment, setCreativityAssignment] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
 
+  const generateQRCode = () => {
+    const url = `${window.location.origin}${window.location.pathname}#scoreboard`;
+    const qrContainer = document.getElementById('qr-container');
+    if (qrContainer) {
+      qrContainer.innerHTML = `
+        <div style="text-align: center; padding: 1rem; background: white; border-radius: 8px;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}" 
+               alt="QR Code" style="border: 2px solid #e5e7eb; border-radius: 8px;" />
+          <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #6b7280; word-break: break-all;">
+            ${url}
+          </div>
+        </div>
+      `;
+    }
+  };
+
   useEffect(() => {
     fetchData();
     const interval = setInterval(updateTimer, 1000);
+    // Generate QR code when component mounts
+    setTimeout(generateQRCode, 100);
     return () => clearInterval(interval);
   }, []);
 
@@ -485,13 +503,12 @@ const AdminPage = () => {
         </div>
 
         <div className="qr-section">
-          <h3>📱 QR Code voor statistieken</h3>
+          <h3>📱 QR code voor statistieken</h3>
           <div className="qr-info">
             <p>Laat mensen scannen voor live statistieken:</p>
-            <div className="qr-placeholder">
-              📱 QR Code: {window.location.origin}/#/scoreboard
+            <div id="qr-container" className="qr-container">
+              Laden...
             </div>
-            <small>Gebruik een QR generator met deze URL</small>
           </div>
         </div>
       </div>

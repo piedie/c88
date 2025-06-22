@@ -385,6 +385,12 @@ h3 {
   color: white !important;
 }
 
+.qr-container {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
 .qr-placeholder {
   background: #f3f4f6;
   padding: 1rem;
