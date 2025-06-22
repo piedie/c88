@@ -357,6 +357,113 @@ h3 {
 }
 
 /* Responsive */
+/* Live Announcements */
+.announcements-section,
+.qr-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.announcement-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.announcement-controls input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.clear-announcement {
+  background: #f87171 !important;
+  color: white !important;
+}
+
+.qr-placeholder {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-family: monospace;
+  margin: 0.5rem 0;
+}
+
+/* Live Announcement Banner */
+.live-announcement {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Momentum Meter */
+.momentum-leader {
+  text-align: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border-radius: 8px;
+  border: 2px solid #f87171;
+}
+
+.momentum-team {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+.momentum-score {
+  color: #991b1b;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.momentum-badge {
+  background: #dc2626;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  display: inline-block;
+}
+
+/* Export Section */
+.export-section {
+  text-align: center;
+  margin-top: 3rem;
+  padding: 2rem;
+}
+
+.export-btn {
+  background: #4f46e5 !important;
+  color: white !important;
+  padding: 1rem 2rem !important;
+  font-size: 1.1rem !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+}
+
+.export-btn:hover {
+  background: #4338ca !important;
+  transform: translateY(-2px) !important;
+}
+
 @media (max-width: 768px) {
   .logbook-header {
     flex-direction: column;

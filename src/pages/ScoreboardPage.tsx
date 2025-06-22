@@ -17,6 +17,8 @@ interface Config {
   timer_start_time: string | null;
   timer_is_running: boolean;
   game_session_id: string;
+  announcement_text?: string;
+  announcement_timestamp?: string;
 }
 
 interface PopularAssignment {
@@ -261,10 +263,62 @@ const ScoreboardPage = () => {
     return '⭐';
   };
 
+  const getMomentumLeader = () => {
+    if (!config?.timer_start_time) return null;
+    
+    // Get activity from last 15 minutes
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const recentTeamActivity: {[key: string]: number} = {};
+    
+    recentActivity.forEach(activity => {
+      if (new Date(activity.created_at) > fifteenMinAgo) {
+        recentTeamActivity[activity.team_name] = (recentTeamActivity[activity.team_name] || 0) + 1;
+      }
+    });
+    
+    const sorted = Object.entries(recentTeamActivity).sort(([,a], [,b]) => b - a);
+    return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1] } : null;
+  };
+
+  const exportToPDF = () => {
+    const printContent = `
+      CRAZY 88 - EINDRESULTATEN
+      
+      🏆 TEAM RANKINGS:
+      ${teams.slice(0, 10).map((team, i) => `${i+1}. ${team.name} (${team.category}) - ${team.total_points} punten`).join('\n')}
+      
+      📊 OPLEIDING PRESTATIES:
+      ${Object.entries(categoryStats).sort(([,a], [,b]) => b.average - a.average).map(([cat, stats]) => `${cat}: ${stats.average.toFixed(1)} gemiddeld (${stats.teams} teams)`).join('\n')}
+      
+      🔥 POPULAIRSTE OPDRACHTEN:
+      ${popularAssignments.slice(0, 5).map((a, i) => `${i+1}. Opdracht ${a.assignment_id} (${a.completion_count}× gedaan)`).join('\n')}
+      
+      📈 STATISTIEKEN:
+      - Totaal opdrachten: ${totalAssignments}
+      - Unieke opdrachten: ${uniqueAssignments}/88
+      - Speeltijd: ${getGameDuration()} minuten
+    `;
+    
+    const blob = new Blob([printContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'crazy88-resultaten.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!config) return <div className="loading">Laden...</div>;
 
   return (
     <div className="scoreboard">
+      {/* Live Announcement */}
+      {config.announcement_text && (
+        <div className="live-announcement">
+          📢 {config.announcement_text}
+        </div>
+      )}
+
       {/* Timer Display */}
       <div className="timer-hero">
         <div className="timer-display-large">
@@ -326,6 +380,22 @@ const ScoreboardPage = () => {
               </div>
             ) : (
               <div className="no-data">Spel nog niet gestart</div>
+            );
+          })()}
+        </div>
+
+        <div className="stat-card">
+          <h3>🔥 Momentum meter</h3>
+          {(() => {
+            const momentum = getMomentumLeader();
+            return momentum ? (
+              <div className="momentum-leader">
+                <div className="momentum-team">{momentum.name}</div>
+                <div className="momentum-score">{momentum.count} opdrachten laatste 15 min</div>
+                <div className="momentum-badge">🚀 Hot streak!</div>
+              </div>
+            ) : (
+              <div className="no-data">Geen recente activiteit</div>
             );
           })()}
         </div>
@@ -414,6 +484,13 @@ const ScoreboardPage = () => {
           <p>Nog geen scores. Het spel kan beginnen!</p>
         </div>
       )}
+
+      {/* Export Button */}
+      <div className="export-section">
+        <button onClick={exportToPDF} className="export-btn">
+          📄 Exporteer resultaten
+        </button>
+      </div>
     </div>
   );
 };

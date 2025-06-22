@@ -29,6 +29,7 @@ const AdminPage = () => {
   const [showCreativityModal, setShowCreativityModal] = useState(false);
   const [creativityTeam, setCreativityTeam] = useState<Team | null>(null);
   const [creativityAssignment, setCreativityAssignment] = useState('');
+  const [announcementText, setAnnouncementText] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -249,6 +250,33 @@ const AdminPage = () => {
     fetchData();
   };
 
+  const sendAnnouncement = async () => {
+    if (!announcementText.trim() || !config) return;
+    
+    await supabase
+      .from('config')
+      .update({
+        announcement_text: announcementText.trim(),
+        announcement_timestamp: new Date().toISOString()
+      })
+      .eq('id', config.id);
+    
+    setAnnouncementText('');
+    alert('Bericht verzonden naar statistiekenpagina!');
+  };
+
+  const clearAnnouncement = async () => {
+    if (!config) return;
+    
+    await supabase
+      .from('config')
+      .update({
+        announcement_text: '',
+        announcement_timestamp: null
+      })
+      .eq('id', config.id);
+  };
+
   const resetGame = async () => {
     const keepTeams = confirm('Wil je de teams behouden?\n\n✅ JA = Teams blijven, scores worden gewist\n❌ NEE = Alles wordt gewist (teams én scores)');
     
@@ -434,6 +462,37 @@ const AdminPage = () => {
           <button className="reset" onClick={resetGame}>
             🔄 Nieuw spel starten
           </button>
+        </div>
+
+        <div className="announcements-section">
+          <h3>📢 Live berichten</h3>
+          <div className="announcement-controls">
+            <input
+              type="text"
+              placeholder="Bericht voor statistiekenpagina..."
+              value={announcementText}
+              onChange={(e) => setAnnouncementText(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendAnnouncement()}
+              maxLength={100}
+            />
+            <button onClick={sendAnnouncement} disabled={!announcementText.trim()}>
+              📤 Verstuur
+            </button>
+            <button onClick={clearAnnouncement} className="clear-announcement">
+              🗑️ Wis
+            </button>
+          </div>
+        </div>
+
+        <div className="qr-section">
+          <h3>📱 QR Code voor statistieken</h3>
+          <div className="qr-info">
+            <p>Laat mensen scannen voor live statistieken:</p>
+            <div className="qr-placeholder">
+              📱 QR Code: {window.location.origin}/#/scoreboard
+            </div>
+            <small>Gebruik een QR generator met deze URL</small>
+          </div>
         </div>
       </div>
 
