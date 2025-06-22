@@ -59,30 +59,30 @@ const ScoreboardPage = () => {
     const { data: configData } = await supabase.from('config').select('*').single();
     
     if (configData) {
-      const oldConfig = config;
       setConfig(configData);
       
-      // Only calculate timer immediately if config changed significantly
-      if (!oldConfig || 
-          oldConfig.timer_duration !== configData.timer_duration ||
-          oldConfig.timer_start_time !== configData.timer_start_time ||
-          oldConfig.timer_is_running !== configData.timer_is_running) {
-        
-        if (configData.timer_is_running && configData.timer_start_time) {
-          const startTime = new Date(configData.timer_start_time).getTime();
-          const now = new Date().getTime();
-          const elapsed = Math.floor((now - startTime) / 1000);
-          const remaining = Math.max(0, configData.timer_duration - elapsed);
-          setCurrentTime(remaining);
-        } else if (configData.timer_start_time) {
-          const startTime = new Date(configData.timer_start_time).getTime();
-          const now = new Date().getTime();
-          const elapsed = Math.floor((now - startTime) / 1000);
-          const remaining = Math.max(0, configData.timer_duration - elapsed);
-          setCurrentTime(remaining);
-        } else {
-          setCurrentTime(configData.timer_duration || 0);
-        }
+      // Update timer data separately for smooth updates
+      setTimerData({
+        duration: configData.timer_duration || 0,
+        startTime: configData.timer_start_time,
+        isRunning: configData.timer_is_running || false
+      });
+      
+      // Calculate initial timer value
+      if (configData.timer_is_running && configData.timer_start_time) {
+        const startTime = new Date(configData.timer_start_time).getTime();
+        const now = new Date().getTime();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        const remaining = Math.max(0, configData.timer_duration - elapsed);
+        setCurrentTime(remaining);
+      } else if (configData.timer_start_time) {
+        const startTime = new Date(configData.timer_start_time).getTime();
+        const now = new Date().getTime();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        const remaining = Math.max(0, configData.timer_duration - elapsed);
+        setCurrentTime(remaining);
+      } else {
+        setCurrentTime(configData.timer_duration || 0);
       }
     }
 
@@ -176,24 +176,22 @@ const ScoreboardPage = () => {
   };
 
   const updateTimer = () => {
-    if (!config) return;
-    
-    if (config.timer_is_running && config.timer_start_time) {
-      const startTime = new Date(config.timer_start_time).getTime();
+    if (timerData.isRunning && timerData.startTime) {
+      const startTime = new Date(timerData.startTime).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, config.timer_duration - elapsed);
+      const remaining = Math.max(0, timerData.duration - elapsed);
       setCurrentTime(remaining);
-    } else if (config.timer_start_time && !config.timer_is_running) {
+    } else if (timerData.startTime) {
       // Timer was started but is now stopped/paused - calculate remaining time
-      const startTime = new Date(config.timer_start_time).getTime();
+      const startTime = new Date(timerData.startTime).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, config.timer_duration - elapsed);
+      const remaining = Math.max(0, timerData.duration - elapsed);
       setCurrentTime(remaining);
     } else {
       // Timer never started - show full duration
-      setCurrentTime(config.timer_duration || 0);
+      setCurrentTime(timerData.duration || 0);
     }
   };
 
@@ -204,20 +202,20 @@ const ScoreboardPage = () => {
   };
 
   const getTimerStatus = () => {
-    if (!config?.timer_duration) return 'Geen timer ingesteld';
-    if (!config.timer_start_time) return 'Klaar om te starten';
+    if (!timerData.duration) return 'Geen timer ingesteld';
+    if (!timerData.startTime) return 'Klaar om te starten';
     
     // Check if time is up
-    if (config.timer_start_time) {
-      const startTime = new Date(config.timer_start_time).getTime();
+    if (timerData.startTime) {
+      const startTime = new Date(timerData.startTime).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, config.timer_duration - elapsed);
+      const remaining = Math.max(0, timerData.duration - elapsed);
       
       if (remaining <= 0) return '🏁 Het spel is afgelopen!';
     }
     
-    if (config.timer_is_running) return '🔥 Spel loopt!';
+    if (timerData.isRunning) return '🔥 Spel loopt!';
     return '⏸️ Spel gepauzeerd';
   };
 
@@ -339,7 +337,7 @@ const ScoreboardPage = () => {
       {/* Timer Display */}
       <div className="timer-hero">
         <div className="timer-display-large">
-          {config.timer_duration > 0 ? formatTime(currentTime) : '--:--'}
+          {timerData.duration > 0 ? formatTime(currentTime) : '--:--'}
         </div>
         <div className="timer-status">
           {getTimerStatus()}
