@@ -59,17 +59,30 @@ const ScoreboardPage = () => {
     const { data: configData } = await supabase.from('config').select('*').single();
     
     if (configData) {
+      const oldConfig = config;
       setConfig(configData);
       
-      // Immediately calculate timer value when we get fresh config
-      if (configData.timer_is_running && configData.timer_start_time) {
-        const startTime = new Date(configData.timer_start_time).getTime();
-        const now = new Date().getTime();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        const remaining = Math.max(0, configData.timer_duration - elapsed);
-        setCurrentTime(remaining);
-      } else {
-        setCurrentTime(configData.timer_duration || 0);
+      // Only calculate timer immediately if config changed significantly
+      if (!oldConfig || 
+          oldConfig.timer_duration !== configData.timer_duration ||
+          oldConfig.timer_start_time !== configData.timer_start_time ||
+          oldConfig.timer_is_running !== configData.timer_is_running) {
+        
+        if (configData.timer_is_running && configData.timer_start_time) {
+          const startTime = new Date(configData.timer_start_time).getTime();
+          const now = new Date().getTime();
+          const elapsed = Math.floor((now - startTime) / 1000);
+          const remaining = Math.max(0, configData.timer_duration - elapsed);
+          setCurrentTime(remaining);
+        } else if (configData.timer_start_time) {
+          const startTime = new Date(configData.timer_start_time).getTime();
+          const now = new Date().getTime();
+          const elapsed = Math.floor((now - startTime) / 1000);
+          const remaining = Math.max(0, configData.timer_duration - elapsed);
+          setCurrentTime(remaining);
+        } else {
+          setCurrentTime(configData.timer_duration || 0);
+        }
       }
     }
 
@@ -171,15 +184,15 @@ const ScoreboardPage = () => {
       const elapsed = Math.floor((now - startTime) / 1000);
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
-    } else if (config.timer_start_time) {
-      // Timer was started but is now stopped - check if time is up
+    } else if (config.timer_start_time && !config.timer_is_running) {
+      // Timer was started but is now stopped/paused - calculate remaining time
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else {
-      // Timer never started
+      // Timer never started - show full duration
       setCurrentTime(config.timer_duration || 0);
     }
   };
