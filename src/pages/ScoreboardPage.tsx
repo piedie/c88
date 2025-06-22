@@ -510,4 +510,4 @@ const ScoreboardPage = () => {
   );
 };
 
-export default ScoreboardPage;
+export default ScoreboardPage; 
