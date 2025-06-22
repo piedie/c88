@@ -39,29 +39,38 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Timer updates every second for smooth countdown
-    const timerInterval = setInterval(() => {
-      updateTimer();
-    }, 1000);
-    
     // Data refresh every 10 seconds (announcements, scores, etc.)
     const dataInterval = setInterval(() => {
       fetchData();
     }, 10000);
     
     return () => {
-      clearInterval(timerInterval);
       clearInterval(dataInterval);
     };
-  }, [config]); // Add config dependency so timer updates when config changes
+  }, []);
+
+  // Separate useEffect for timer that depends on config
+  useEffect(() => {
+    if (!config) return;
+    
+    // Timer updates every second for smooth countdown
+    const timerInterval = setInterval(() => {
+      updateTimer();
+    }, 1000);
+    
+    // Initial timer calculation
+    updateTimer();
+    
+    return () => {
+      clearInterval(timerInterval);
+    };
+  }, [config]);
 
   const fetchData = async () => {
     const { data: configData } = await supabase.from('config').select('*').single();
     
     if (configData) {
       setConfig(configData);
-      // Trigger immediate timer update when config changes
-      setTimeout(() => updateTimer(), 0);
     }
 
     if (!configData) return;
