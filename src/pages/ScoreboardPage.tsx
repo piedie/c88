@@ -39,10 +39,10 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Data refresh every 30 seconds to prevent flickering
+    // Data refresh every 15 seconds to prevent flickering
     const dataInterval = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 15000);
     
     return () => {
       clearInterval(dataInterval);
@@ -131,10 +131,17 @@ const ScoreboardPage = () => {
       if (b.assignments_completed !== a.assignments_completed) {
         return b.assignments_completed - a.assignments_completed;
       }
-      // Tertiary sort: alphabetical by name
-      return a.name.localeCompare(b.name);
+      // Tertiary sort: team ID for consistent ordering
+      return a.id.localeCompare(b.id);
     });
-    setTeams(teamsArray);
+    
+    // Only update teams if there's actually a change to prevent unnecessary re-renders
+    const currentTeamsString = JSON.stringify(teams.map(t => ({id: t.id, points: t.total_points})));
+    const newTeamsString = JSON.stringify(teamsArray.map(t => ({id: t.id, points: t.total_points})));
+    
+    if (currentTeamsString !== newTeamsString) {
+      setTeams(teamsArray);
+    }
     setTotalAssignments(scoreData?.length || 0);
     setUniqueAssignments(uniqueAssignmentIds.size);
 
