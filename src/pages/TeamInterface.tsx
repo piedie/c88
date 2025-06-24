@@ -155,64 +155,177 @@ const TeamInterface = ({ token }: { token: string }) => {
     setUploadModal(true);
   };
 
-  const handleFileUpload = async (file: File) => {
-    if (!selectedAssignment || !team) return;
+// Vervang de handleFileUpload functie in TeamInterface.tsx met deze verbeterde versie:
 
-    try {
-      setUploading(true);
+const handleFileUpload = async (file: File) => {
+  if (!selectedAssignment || !team) {
+    console.error('Missing assignment or team data');
+    alert('Fout: Geen opdracht of team data beschikbaar');
+    return;
+  }
 
-      // Create unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${team.id}/${selectedAssignment.number}_${Date.now()}.${fileExt}`;
+  try {
+    setUploading(true);
+    console.log('Starting upload for:', {
+      assignment: selectedAssignment.number,
+      team: team.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('Bestand te groot. Maximum 10MB toegestaan.');
+    }
+
+    // Validate file type
+    const isValidType = (
+      (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||
+      (selectedAssignment.requires_video && file.type.startsWith('video/')) ||
+      (selectedAssignment.requires_audio && file.type.startsWith('audio/'))
+    );
+
+    if (!isValidType) {
+      throw new Error('Ongeldig bestandstype voor deze opdracht.');
+    }
+
+    // Create unique filename
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'unknown';
+    const fileName = `${team.id}/${selectedAssignment.number}_${Date.now()}.${fileExt}`;
+    
+    console.log('Uploading to path:', fileName);
+
+    // Check if storage bucket exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    if (bucketsError) {
+      console.error('Error checking buckets:', bucketsError);
+      throw new Error('Kan storage buckets niet controleren');
+    }
+    
+    const submissionsBucket = buckets?.find(b => b.name === 'submissions');
+    if (!submissionsBucket) {
+      throw new Error('Storage bucket "submissions" niet gevonden. Contacteer de beheerder.');
+    }
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('submissions')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      throw new Error(`Upload fout: ${uploadError.message}`);
+    }
+
+    console.log('Upload successful:', uploadData);
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('submissions')
+      .getPublicUrl(fileName);
+
+    console.log('Public URL:', publicUrl);
+
+    // Prepare submission data
+    const submissionData: any = {
+      assignment_id: selectedAssignment.id,
+      team_id: team.id,
+      game_session_id: team.game_session_id,
+      status: 'pending',
+      description: '',
+      file_path: fileName,
+      file_type: file.type,
+      file_size: file.size
+    };
+
+    // Add URL based on file type
+    if (file.type.startsWith('image/')) {
+      submissionData.photo_url = publicUrl;
+    } else if (file.type.startsWith('video/')) {
+      submissionData.video_url = publicUrl;
+    } else if (file.type.startsWith('audio/')) {
+      submissionData.audio_url = publicUrl;
+    }
+
+    console.log('Creating submission record:', submissionData);
+
+    // Check if submission already exists
+    const { data: existingSubmission } = await supabase
+      .from('submissions')
+      .select('id')
+      .eq('assignment_id', selectedAssignment.id)
+      .eq('team_id', team.id)
+      .eq('game_session_id', team.game_session_id)
+      .single();
+
+    let submission;
+    
+    if (existingSubmission) {
+      // Update existing submission
+      console.log('Updating existing submission:', existingSubmission.id);
+      const { data: updatedSubmission, error: updateError } = await supabase
         .from('submissions')
-        .upload(fileName, file);
+        .update(submissionData)
+        .eq('id', existingSubmission.id)
+        .select()
+        .single();
 
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('submissions')
-        .getPublicUrl(fileName);
-
-      // Create submission record
-      const submissionData = {
-        assignment_id: selectedAssignment.id,
-        team_id: team.id,
-        game_session_id: team.game_session_id,
-        status: 'pending' as const,
-        description: '', // Could add description field later
-      };
-
-      // Add URL based on file type
-      if (file.type.startsWith('image/')) {
-        submissionData['photo_url'] = publicUrl;
-      } else if (file.type.startsWith('video/')) {
-        submissionData['video_url'] = publicUrl;
+      if (updateError) {
+        console.error('Update submission error:', updateError);
+        throw new Error(`Fout bij updaten: ${updateError.message}`);
       }
-
-      const { data: submission, error: submissionError } = await supabase
+      submission = updatedSubmission;
+    } else {
+      // Create new submission
+      console.log('Creating new submission');
+      const { data: newSubmission, error: insertError } = await supabase
         .from('submissions')
         .insert([submissionData])
         .select()
         .single();
 
-      if (submissionError) throw submissionError;
-
-      // Update local state
-      setSubmissions(prev => [...prev.filter(s => s.assignment_id !== selectedAssignment.id), submission]);
-      setUploadModal(false);
-      setSelectedAssignment(null);
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Er ging iets mis bij het uploaden. Probeer het opnieuw.');
-    } finally {
-      setUploading(false);
+      if (insertError) {
+        console.error('Insert submission error:', insertError);
+        throw new Error(`Fout bij opslaan: ${insertError.message}`);
+      }
+      submission = newSubmission;
     }
-  };
+
+    console.log('Submission saved successfully:', submission);
+
+    // Update local state
+    setSubmissions(prev => {
+      const filtered = prev.filter(s => s.assignment_id !== selectedAssignment.id);
+      return [...filtered, submission];
+    });
+    
+    setUploadModal(false);
+    setSelectedAssignment(null);
+    
+    alert('✅ Upload succesvol! Wacht op beoordeling van de jury.');
+
+  } catch (error: any) {
+    console.error('Upload error details:', error);
+    
+    // More specific error messages
+    let errorMessage = 'Er ging iets mis bij het uploaden.';
+    
+    if (error.message) {
+      errorMessage = error.message;
+    } else if (error.error_description) {
+      errorMessage = error.error_description;
+    } else if (error.details) {
+      errorMessage = error.details;
+    }
+    
+    alert(`❌ ${errorMessage}`);
+  } finally {
+    setUploading(false);
+  }
+};
 
   const filteredAssignments = assignments.filter(assignment => {
     const matchesSearch = assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

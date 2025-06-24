@@ -2369,15 +2369,341 @@ button:disabled {
 .qr-modal.error .qr-header h3::before {
   content: "❌ ";
 }
-/* Team Interface CSS - Mobile First Design */
+/* Compacte Mobiele Interface Fixes - vervang de bestaande team interface CSS */
 
 .team-interface {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
+  padding: 0.75rem;
   padding-bottom: 2rem;
 }
 
+/* Filters - fix voor uitlopende zoekbalk */
+.team-filters {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box; /* Fix voor uitlopende balk */
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.filter-select {
+  padding: 0.375rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  background: white;
+  box-sizing: border-box;
+}
+
+/* Compacte Assignments Grid */
+.assignments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+/* Veel compactere assignment cards */
+.assignment-card {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  border: 2px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.assignment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.assignment-card:active {
+  transform: translateY(0);
+}
+
+/* Assignment Card Content - veel compacter */
+.assignment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.375rem;
+}
+
+.assignment-number {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.assignment-status {
+  font-size: 1.125rem;
+}
+
+.assignment-content {
+  flex: 1;
+  margin-bottom: 0.5rem;
+}
+
+.assignment-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.assignment-description {
+  font-size: 0.625rem;
+  color: #6b7280;
+  line-height: 1.3;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.assignment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.assignment-meta {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.difficulty-indicator {
+  color: white;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.points {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.points-awarded {
+  background: #dcfce7;
+  color: #166534;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.assignment-requirements {
+  display: flex;
+  gap: 0.125rem;
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
+
+.assignment-requirements .req {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+/* Team Header - ook compacter */
+.team-header {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.team-info h1 {
+  margin: 0 0 0.75rem 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.team-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.team-category,
+.team-score,
+.team-progress {
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.team-progress-bar {
+  width: 100%;
+  height: 0.375rem;
+  background: #e5e7eb;
+  border-radius: 0.1875rem;
+  overflow: hidden;
+}
+
+/* Responsive aanpassingen */
+@media (max-width: 640px) {
+  .team-interface {
+    padding: 0.5rem;
+  }
+  
+  .assignments-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.375rem;
+  }
+  
+  .assignment-card {
+    padding: 0.5rem;
+    min-height: 100px;
+  }
+  
+  .team-header {
+    padding: 0.75rem;
+  }
+  
+  .team-info h1 {
+    font-size: 1.125rem;
+  }
+  
+  .filter-row {
+    grid-template-columns: 1fr;
+    gap: 0.375rem;
+  }
+  
+  .assignment-title {
+    font-size: 0.6875rem;
+  }
+  
+  .assignment-description {
+    font-size: 0.5625rem;
+  }
+}
+
+@media (min-width: 375px) and (max-width: 640px) {
+  .assignments-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (min-width: 640px) {
+  .assignments-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .assignment-card {
+    min-height: 140px;
+  }
+  
+  .filter-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .team-interface {
+    padding: 1.5rem;
+  }
+  
+  .assignments-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  
+  .assignment-card {
+    min-height: 160px;
+    padding: 1rem;
+  }
+  
+  .assignment-title {
+    font-size: 0.875rem;
+    -webkit-line-clamp: 3;
+  }
+  
+  .assignment-description {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (min-width: 1024px) {
+  .assignments-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  
+  .team-header {
+    padding: 1.5rem;
+  }
+  
+  .team-info h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .assignment-card:hover {
+    transform: none;
+  }
+  
+  .assignment-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
+  }
+  
+  .assignment-card {
+    min-height: 110px;
+  }
+}
+
+/* Behoud de rest van de CSS (modal, loading states, etc.) zoals die was */
 /* Loading & Error States */
 .team-loading,
 .team-error {
