@@ -411,7 +411,7 @@ const handleFileUpload = async (file: File) => {
           <div 
             className="progress-fill" 
             style={{ width: `${(completedCount / 88) * 100}%` }}
-          ></div>
+          ></div><button onClick={debugSupabaseConnection}>🔍 Test Connection</button>
         </div>
       </div>
 
@@ -557,5 +557,50 @@ const handleFileUpload = async (file: File) => {
     </div>
   );
 };
+// Add dit tijdelijk aan je TeamInterface.tsx om Supabase config te checken
 
+const debugSupabaseConnection = async () => {
+  console.log('=== SUPABASE DEBUG ===');
+  
+  try {
+    // Check basic connection
+    console.log('Supabase URL:', supabase.supabaseUrl);
+    console.log('Supabase Key:', supabase.supabaseKey?.substring(0, 20) + '...');
+    
+    // Test basic database access
+    console.log('Testing database connection...');
+    const { data: configTest, error: configError } = await supabase
+      .from('config')
+      .select('game_session_id')
+      .limit(1);
+    
+    if (configError) {
+      console.error('❌ Database connection failed:', configError);
+    } else {
+      console.log('✅ Database connection OK');
+    }
+    
+    // Test storage access with simple list
+    console.log('Testing storage connection...');
+    try {
+      const { data: files, error: storageError } = await supabase.storage
+        .from('submissions')
+        .list('', { limit: 1 });
+      
+      if (storageError) {
+        console.error('❌ Storage connection failed:', storageError);
+      } else {
+        console.log('✅ Storage connection OK, files found:', files?.length || 0);
+      }
+    } catch (storageErr) {
+      console.error('❌ Storage connection exception:', storageErr);
+    }
+    
+  } catch (err) {
+    console.error('❌ General connection error:', err);
+  }
+};
+
+// Voeg deze button toe aan je UI (tijdelijk)
+// <button onClick={debugSupabaseConnection}>🔍 Test Connection</button>
 export default TeamInterface;
