@@ -41,6 +41,8 @@ const ScoreboardPage = () => {
     
     // Vervang de fetchData functie in ScoreboardPage.tsx met deze verbeterde versie:
 
+// Vervang de fetchData functie in ScoreboardPage.tsx met deze verbeterde versie:
+
 const fetchData = async () => {
   try {
     const { data: configData } = await supabase.from('config').select('*').single();
@@ -101,6 +103,10 @@ const fetchData = async () => {
       assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
     });
 
+    // Set the totals voor de live stats banner
+    setTotalAssignments(totalAssignmentsCount);
+    setUniqueAssignments(uniqueAssignmentIds.size);
+
     // Verbeterde ranking logica met meer stabiele sorting
     const teamsArray = Object.values(teamStats).sort((a, b) => {
       // Primary sort: total points (descending)
@@ -118,6 +124,49 @@ const fetchData = async () => {
       // Final sort: name for consistent ordering
       return a.name.localeCompare(b.name);
     });
+
+    // Update states in batch om race conditions te voorkomen
+    setTeams(teamsArray);
+    
+    // Recent activity (last 10)
+    const recent = scoreData?.slice(0, 10).map(score => ({
+      assignment_id: score.assignment_id,
+      team_name: (score.teams as any).name,
+      team_category: (score.teams as any).category,
+      points: score.points,
+      created_at: score.created_at,
+    })) || [];
+    setRecentActivity(recent);
+
+    // Popular assignments
+    const popular = Object.entries(assignmentCounts)
+      .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
+      .sort((a, b) => b.completion_count - a.completion_count)
+      .slice(0, 5);
+    setPopularAssignments(popular);
+
+    // Category stats - weighted by team count
+    const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
+    teamsArray.forEach(team => {
+      if (!catStats[team.category]) {
+        catStats[team.category] = {total: 0, teams: 0, average: 0};
+      }
+      catStats[team.category].total += team.total_points;
+      catStats[team.category].teams += 1;
+    });
+    
+    // Calculate averages
+    Object.keys(catStats).forEach(category => {
+      catStats[category].average = catStats[category].total / catStats[category].teams;
+    });
+    
+    setCategoryStats(catStats);
+
+  } catch (error) {
+    console.error('Error fetching scoreboard data:', error);
+    // Optioneel: toon een error message aan de gebruiker
+  }
+};
 
     // Update states in batch om race conditions te voorkomen
     setTeams(teamsArray);
