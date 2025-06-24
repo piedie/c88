@@ -7,37 +7,49 @@ import '../styles/App.css';
 
 type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'login';
 
+// In App.tsx, vervang de password sectie met deze veiligere versie:
+
 const App = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
 
-  // Simple hash function for password (you can also use a more secure one)
-  const hashPassword = (pwd: string): string => {
-    let hash = 0;
-    for (let i = 0; i < pwd.length; i++) {
-      const char = pwd.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString();
+  // Simple but more secure hash function
+  const hashPassword = async (pwd: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pwd + 'c88-salt'); // Add salt for security
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  // Hash of "" is "-1169789239" - change this to your desired password hash
-  const ADMIN_PASSWORD_HASH = '-1067928817'; 
+  // Hash of "jury2025" with salt - dit is de nieuwe hash
+  const ADMIN_PASSWORD_HASH = 'a1b2c3d4e5f6'; // Placeholder - zie hieronder
 
-  // To generate a new hash, uncomment this line and check console:
-  //console.log('Hash for "kkk":', hashPassword('mynewpassword'));
+  // Temporary: uncomment deze regel om de hash van je wachtwoord te zien
+  // React.useEffect(() => {
+  //   hashPassword('jury2025').then(hash => console.log('Hash:', hash));
+  // }, []);
 
-  const handleLogin = () => {
-    const passwordHash = hashPassword(password);
-    if (passwordHash === ADMIN_PASSWORD_HASH) {
-      setIsAuthenticated(true);
-      setCurrentPage('admin');
-      localStorage.setItem('c88-admin-auth', 'true');
-      setPassword('');
-    } else {
-      alert('Onjuist wachtwoord');
+  const handleLogin = async () => {
+    try {
+      const passwordHash = await hashPassword(password);
+      
+      // Temporary: laat beide hashes zien voor debugging
+      console.log('Ingevoerde hash:', passwordHash);
+      console.log('Verwachte hash:', ADMIN_PASSWORD_HASH);
+      
+      if (passwordHash === ADMIN_PASSWORD_HASH) {
+        setIsAuthenticated(true);
+        setCurrentPage('admin');
+        localStorage.setItem('c88-admin-auth', 'true');
+        setPassword('');
+      } else {
+        alert('Onjuist wachtwoord');
+        setPassword('');
+      }
+    } catch (error) {
+      alert('Fout bij inloggen');
       setPassword('');
     }
   };
