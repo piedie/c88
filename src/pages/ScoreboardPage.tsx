@@ -39,34 +39,10 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Data refresh every 15 seconds to prevent flickering
-    const dataInterval = setInterval(() => {
-      fetchData();
-    }, 15000);
-    
-    return () => {
-      clearInterval(dataInterval);
-    };
-  }, []);
+    // Vervang de fetchData functie in ScoreboardPage.tsx met deze verbeterde versie:
 
-  // Separate useEffect for timer that depends on config
-  useEffect(() => {
-    if (!config) return;
-    
-    // Timer updates every second for smooth countdown
-    const timerInterval = setInterval(() => {
-      updateTimer();
-    }, 1000);
-    
-    // Initial timer calculation
-    updateTimer();
-    
-    return () => {
-      clearInterval(timerInterval);
-    };
-  }, [config]);
-
-  const fetchData = async () => {
+const fetchData = async () => {
+  try {
     const { data: configData } = await supabase.from('config').select('*').single();
     
     if (configData) {
@@ -75,7 +51,7 @@ const ScoreboardPage = () => {
 
     if (!configData) return;
 
-    // Get teams with scores
+    // Get teams with scores in één query voor consistentie
     const { data: scoreData } = await supabase
       .from('scores')
       .select(`
@@ -85,12 +61,14 @@ const ScoreboardPage = () => {
         created_at,
         teams!inner(name, category)
       `)
-      .eq('game_session_id', configData.game_session_id);
+      .eq('game_session_id', configData.game_session_id)
+      .order('created_at', { ascending: false }); // Zorg voor consistente volgorde
 
     // Process team statistics
     const teamStats: {[key: string]: Team} = {};
     const assignmentCounts: {[key: number]: number} = {};
     const uniqueAssignmentIds = new Set<number>();
+    let totalAssignmentsCount = 0;
     
     scoreData?.forEach(score => {
       const teamId = score.team_id;
@@ -111,6 +89,7 @@ const ScoreboardPage = () => {
       teamStats[teamId].total_points += score.points;
       teamStats[teamId].assignments_completed += 1;
       uniqueAssignmentIds.add(score.assignment_id);
+      totalAssignmentsCount++;
       
       if (score.points === 5) {
         teamStats[teamId].creativity_points += score.points;
@@ -122,26 +101,31 @@ const ScoreboardPage = () => {
       assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
     });
 
-   const teamsArray = Object.values(teamStats).sort((a, b) => {
-  // Primary sort: total points (descending)
-  if (b.total_points !== a.total_points) {
-    return b.total_points - a.total_points;
-  }
-  // Secondary sort: assignments completed (descending) 
-  if (b.assignments_completed !== a.assignments_completed) {
-    return b.assignments_completed - a.assignments_completed;
-  }
-  // Tertiary sort: name for consistent ordering (instead of ID)
-  return a.name.localeCompare(b.name);
-});
+    // Verbeterde ranking logica met meer stabiele sorting
+    const teamsArray = Object.values(teamStats).sort((a, b) => {
+      // Primary sort: total points (descending)
+      if (b.total_points !== a.total_points) {
+        return b.total_points - a.total_points;
+      }
+      // Secondary sort: assignments completed (descending) 
+      if (b.assignments_completed !== a.assignments_completed) {
+        return b.assignments_completed - a.assignments_completed;
+      }
+      // Tertiary sort: creativity points (descending)
+      if (b.creativity_points !== a.creativity_points) {
+        return b.creativity_points - a.creativity_points;
+      }
+      // Final sort: name for consistent ordering
+      return a.name.localeCompare(b.name);
+    });
 
-// Remove the comparison check that's causing issues - always update teams
-setTeams(teamsArray);
+    // Update states in batch om race conditions te voorkomen
+    setTeams(teamsArray);
+    setTotalAssignments(totalAssignmentsCount);
+    setUniqueAssignments(uniqueAssignmentIds.size);
     
-    
-
     // Recent activity (last 10)
-    const recent = scoreData?.slice(-10).reverse().map(score => ({
+    const recent = scoreData?.slice(0, 10).map(score => ({
       assignment_id: score.assignment_id,
       team_name: (score.teams as any).name,
       team_category: (score.teams as any).category,
@@ -173,8 +157,12 @@ setTeams(teamsArray);
     });
     
     setCategoryStats(catStats);
-  };
 
+  } catch (error) {
+    console.error('Error fetching scoreboard data:', error);
+    // Optioneel: toon een error message aan de gebruiker
+  }
+};
   const updateTimer = () => {
     if (!config) return;
     
