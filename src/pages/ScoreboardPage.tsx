@@ -574,7 +574,7 @@ const fetchData = async () => {
           </div>
         </div>
       </div>
-       </div>  {/* ← Voeg deze regel toe! */}
+  
 
       {teams.length === 0 && (
         <div className="no-teams-message">
