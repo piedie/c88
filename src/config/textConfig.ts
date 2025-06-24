@@ -1,4 +1,7 @@
-// Nieuw bestand: src/config/textConfig.ts
+// src/config/textConfig.ts - Aangepaste versie met database support
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 export interface TextConfig {
   // General
@@ -12,6 +15,7 @@ export interface TextConfig {
   navScoreboard: string;
   navLogin: string;
   navLogout: string;
+  navTexts: string;
   
   // Login
   loginTitle: string;
@@ -24,7 +28,6 @@ export interface TextConfig {
   
   // Admin/Jury
   juryTitle: string;
-  jurySelectTeam: string;
   jurySelectAssignment: string;
   juryBack: string;
   juryDoublePoints: string;
@@ -44,48 +47,6 @@ export interface TextConfig {
   juryQRTitle: string;
   juryQRDescription: string;
   
-  // Teams
-  teamsTitle: string;
-  teamsAdd: string;
-  teamsName: string;
-  teamsCategory: string;
-  teamsAddButton: string;
-  teamsCurrent: string;
-  teamsEdit: string;
-  teamsDelete: string;
-  teamsSave: string;
-  teamsCancel: string;
-  teamsDeleteAll: string;
-  
-  // Scoreboard
-  scoreboardTitle: string;
-  scoreboardRankings: string;
-  scoreboardMinutesPlaying: string;
-  scoreboardAssignmentsLast10: string;
-  scoreboardAssignmentsDone: string;
-  scoreboardUniqueAssignments: string;
-  scoreboardCategoryLeaders: string;
-  scoreboardFastestTeam: string;
-  scoreboardMostCreative: string;
-  scoreboardMomentum: string;
-  scoreboardCategoryAverage: string;
-  scoreboardCategoryTotal: string;
-  scoreboardPopular: string;
-  scoreboardLiveActivity: string;
-  scoreboardToDo: string;
-  scoreboardExport: string;
-  
-  // Logbook
-  logbookTitle: string;
-  logbookActions: string;
-  logbookTotalPoints: string;
-  logbookFilter: string;
-  logbookRefresh: string;
-  logbookCompleted: string;
-  logbookNormal: string;
-  logbookDouble: string;
-  logbookCreativity: string;
-  
   // Game states
   gameSetup: string;
   gameReady: string;
@@ -100,20 +61,24 @@ export interface TextConfig {
   categoryJEM: string;
 }
 
+export interface Language {
+  code: string;
+  name: string;
+  is_active: boolean;
+  is_default: boolean;
+}
+
+// Fallback teksten als database niet beschikbaar is
 export const defaultTexts: TextConfig = {
-  // General
   appTitle: 'Crazy 88',
   loading: 'Laden...',
-  
-  // Navigation
   navJury: 'Jury',
   navTeams: 'Teams',
   navLogbook: 'Logboek',
   navScoreboard: 'Scoreboard',
   navLogin: 'Jury login',
   navLogout: 'Uitloggen',
-  
-  // Login
+  navTexts: 'Tekst beheer',
   loginTitle: '🎲 Crazy 88 - Jury toegang',
   loginSubtitle: 'Voor toegang tot jury functies is een wachtwoord vereist.',
   loginPasswordPlaceholder: 'Wachtwoord',
@@ -121,10 +86,7 @@ export const defaultTexts: TextConfig = {
   loginPublicText: 'Alleen scoreboard bekijken?',
   loginScoreboardButton: '📊 Naar scoreboard',
   loginWrongPassword: 'Onjuist wachtwoord',
-  
-  // Admin/Jury
   juryTitle: '👥 Kies team',
-  jurySelectTeam: 'Kies team',
   jurySelectAssignment: 'Kies opdracht voor',
   juryBack: '← Terug',
   juryDoublePoints: '🔁 Dubbele punten',
@@ -143,89 +105,157 @@ export const defaultTexts: TextConfig = {
   juryClear: '🗑️ Wis',
   juryQRTitle: '📱 QR code voor statistieken',
   juryQRDescription: 'Laat mensen scannen voor live statistieken:',
-  
-  // Teams
-  teamsTitle: '👥 Team management',
-  teamsAdd: '➕ Nieuw team toevoegen',
-  teamsName: 'Team naam',
-  teamsCategory: 'Opleiding',
-  teamsAddButton: 'Toevoegen',
-  teamsCurrent: '📋 Huidige teams',
-  teamsEdit: '✏️ Bewerken',
-  teamsDelete: '🗑️ Verwijderen',
-  teamsSave: '✅ Opslaan',
-  teamsCancel: '❌ Annuleren',
-  teamsDeleteAll: '🗑️ Alle teams wissen',
-  
-  // Scoreboard
-  scoreboardTitle: '🏆 Team rankings',
-  scoreboardRankings: 'Team rankings',
-  scoreboardMinutesPlaying: 'minuten bezig',
-  scoreboardAssignmentsLast10: 'opdrachten laatste 10 min',
-  scoreboardAssignmentsDone: 'opdrachten gedaan!',
-  scoreboardUniqueAssignments: 'van de 88 unieke opdrachten',
-  scoreboardCategoryLeaders: '👑 Opleiding leiders',
-  scoreboardFastestTeam: '🚀 Snelste team',
-  scoreboardMostCreative: '🎨 Meest creatief',
-  scoreboardMomentum: '🔥 Momentum meter',
-  scoreboardCategoryAverage: '📊 Opleiding prestaties (gemiddeld)',
-  scoreboardCategoryTotal: '🏆 Opleiding totalen (absoluut)',
-  scoreboardPopular: '🔥 Populairste opdrachten',
-  scoreboardLiveActivity: '⚡ Live activiteit',
-  scoreboardToDo: '📝 Nog te doen',
-  scoreboardExport: '📄 Exporteer resultaten',
-  
-  // Logbook
-  logbookTitle: '📋 Logboek',
-  logbookActions: 'acties',
-  logbookTotalPoints: 'totale punten',
-  logbookFilter: 'Filter per opleiding:',
-  logbookRefresh: '🔄 Vernieuwen',
-  logbookCompleted: 'voltooide opdracht',
-  logbookNormal: '⭐ Normaal',
-  logbookDouble: '🔁 Dubbel',
-  logbookCreativity: '🎨 Creativiteit',
-  
-  // Game states
+  categoryAVFV: 'AV/Fotograaf',
+  categoryMR: 'Mediaredactie',
+  categoryJEM: 'Junior Event Manager',
   gameSetup: '⚙️ Stel eerst een timer in',
   gameReady: '⏳ Klaar om te starten',
   gameRunning: '🔥 Spel loopt!',
   gamePaused: '⏸️ Spel gepauzeerd',
   gameGrace: '⚡ Graceperiode (nog 5 min om punten bij te werken)',
   gameFinished: '🏁 Spel afgelopen - geen punten meer mogelijk',
-  
-  // Categories
-  categoryAVFV: 'AV/Fotograaf',
-  categoryMR: 'Mediaredactie',
-  categoryJEM: 'Junior Event Manager',
 };
-
-// Context for using texts throughout the app
-import React, { createContext, useContext, useState } from 'react';
 
 const TextContext = createContext<{
   texts: TextConfig;
-  updateTexts: (newTexts: Partial<TextConfig>) => void;
+  currentLanguage: string;
+  availableLanguages: Language[];
+  setLanguage: (languageCode: string) => void;
+  updateText: (key: keyof TextConfig, value: string) => Promise<void>;
+  reloadTexts: () => Promise<void>;
 }>({
   texts: defaultTexts,
-  updateTexts: () => {},
+  currentLanguage: 'nl',
+  availableLanguages: [],
+  setLanguage: () => {},
+  updateText: async () => {},
+  reloadTexts: async () => {},
 });
 
 export const TextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [texts, setTexts] = useState<TextConfig>(() => {
-    // Load from localStorage if available
-    const saved = localStorage.getItem('c88-texts');
-    return saved ? { ...defaultTexts, ...JSON.parse(saved) } : defaultTexts;
-  });
+  const [texts, setTexts] = useState<TextConfig>(defaultTexts);
+  const [currentLanguage, setCurrentLanguage] = useState('nl');
+  const [availableLanguages, setAvailableLanguages] = useState<Language[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const updateTexts = (newTexts: Partial<TextConfig>) => {
-    const updated = { ...texts, ...newTexts };
-    setTexts(updated);
-    localStorage.setItem('c88-texts', JSON.stringify(updated));
+  // Load texts from database
+  const loadTexts = async (languageCode: string = currentLanguage) => {
+    try {
+      const { data: textData } = await supabase
+        .from('text_settings')
+        .select('text_key, text_value')
+        .eq('language_code', languageCode);
+
+      if (textData && textData.length > 0) {
+        const loadedTexts: Partial<TextConfig> = {};
+        textData.forEach(item => {
+          (loadedTexts as any)[item.text_key] = item.text_value;
+        });
+        
+        // Merge with defaults for missing keys
+        setTexts({ ...defaultTexts, ...loadedTexts });
+      } else {
+        setTexts(defaultTexts);
+      }
+    } catch (error) {
+      console.error('Error loading texts:', error);
+      setTexts(defaultTexts);
+    }
   };
 
+  // Load available languages
+  const loadLanguages = async () => {
+    try {
+      const { data: languagesData } = await supabase
+        .from('languages')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_default', { ascending: false });
+
+      if (languagesData) {
+        setAvailableLanguages(languagesData);
+        
+        // Set default language if current is not set
+        const defaultLang = languagesData.find(lang => lang.is_default);
+        if (defaultLang && currentLanguage === 'nl') {
+          setCurrentLanguage(defaultLang.code);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading languages:', error);
+    }
+  };
+
+  // Initialize
+  useEffect(() => {
+    const initialize = async () => {
+      setLoading(true);
+      await loadLanguages();
+      await loadTexts();
+      setLoading(false);
+    };
+    
+    initialize();
+  }, []);
+
+  const setLanguage = async (languageCode: string) => {
+    setCurrentLanguage(languageCode);
+    localStorage.setItem('c88-language', languageCode);
+    await loadTexts(languageCode);
+  };
+
+  const updateText = async (key: keyof TextConfig, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('text_settings')
+        .upsert({
+          language_code: currentLanguage,
+          text_key: key,
+          text_value: value,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'language_code,text_key'
+        });
+
+      if (!error) {
+        setTexts(prev => ({ ...prev, [key]: value }));
+      } else {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error updating text:', error);
+      throw error;
+    }
+  };
+
+  const reloadTexts = async () => {
+    await loadTexts();
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '1.2rem'
+      }}>
+        Laden...
+      </div>
+    );
+  }
+
   return (
-    <TextContext.Provider value={{ texts, updateTexts }}>
+    <TextContext.Provider value={{ 
+      texts, 
+      currentLanguage, 
+      availableLanguages, 
+      setLanguage, 
+      updateText, 
+      reloadTexts 
+    }}>
       {children}
     </TextContext.Provider>
   );

@@ -35,9 +35,7 @@ const App = () => {
     try {
       const passwordHash = await hashPassword(password);
       
-      // Temporary: laat beide hashes zien voor debugging
-      console.log('Ingevoerde hash:', passwordHash);
-      console.log('Verwachte hash:', ADMIN_PASSWORD_HASH);
+      
       
       if (passwordHash === ADMIN_PASSWORD_HASH) {
         setIsAuthenticated(true);
