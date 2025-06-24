@@ -3,12 +3,11 @@ import AdminPage from './AdminPage';
 import TeamManagement from './TeamManagement';
 import ScoreboardPage from './ScoreboardPage';
 import LogbookPage from './LogbookPage';
-import TextManagement from './TextManagement'; // Add this import
+import TextManagement from './TextManagement';
+import AssignmentManagement from './AssignmentManagement'; // Nieuwe import
 import '../styles/App.css';
 
-type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'login'; // Add 'texts'
-
-// In App.tsx, vervang de password sectie met deze veiligere versie:
+type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'login'; // Voeg 'assignments' toe
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
@@ -18,25 +17,17 @@ const App = () => {
   // Simple but more secure hash function
   const hashPassword = async (pwd: string): Promise<string> => {
     const encoder = new TextEncoder();
-    const data = encoder.encode(pwd + 'c88-salt'); // Add salt for security
+    const data = encoder.encode(pwd + 'c88-salt');
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  // Hash of "jury2025" with salt - dit is de nieuwe hash
-  const ADMIN_PASSWORD_HASH = '513efe29405ad71e77f1c902e1d23e1b2506a63da4e2b3651357952112ae80b3'; // Placeholder - zie hieronder
-
-  // Temporary: uncomment deze regel om de hash van je wachtwoord te zien
-  // React.useEffect(() => {
-  //   hashPassword('jury2025').then(hash => console.log('Hash:', hash));
-  // }, []);
+  const ADMIN_PASSWORD_HASH = '513efe29405ad71e77f1c902e1d23e1b2506a63da4e2b3651357952112ae80b3';
 
   const handleLogin = async () => {
     try {
       const passwordHash = await hashPassword(password);
-      
-      
       
       if (passwordHash === ADMIN_PASSWORD_HASH) {
         setIsAuthenticated(true);
@@ -80,7 +71,9 @@ const App = () => {
       case 'logbook':
         return <LogbookPage />;
       case 'texts':
-        return <TextManagement />; // Add this case
+        return <TextManagement />;
+      case 'assignments':
+        return <AssignmentManagement />; // Nieuwe case
       case 'login':
         return (
           <div className="login-container">
@@ -164,6 +157,12 @@ const App = () => {
             👥 Teams
           </button>
           <button 
+            className={currentPage === 'assignments' ? 'nav-active' : ''}
+            onClick={() => handlePageChange('assignments')}
+          >
+            📝 Opdrachten
+          </button>
+          <button 
             className={currentPage === 'logbook' ? 'nav-active' : ''}
             onClick={() => handlePageChange('logbook')}
           >
@@ -179,7 +178,7 @@ const App = () => {
             className={currentPage === 'texts' ? 'nav-active' : ''}
             onClick={() => handlePageChange('texts')}
           >
-            📝 Teksten
+            🌐 Teksten
           </button>
           <button className="logout-btn" onClick={handleLogout}>
             🚪 Uitloggen
