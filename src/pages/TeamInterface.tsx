@@ -157,28 +157,47 @@ const TeamInterface = ({ token }: { token: string }) => {
 
 // Vervang de handleFileUpload functie in TeamInterface.tsx met deze verbeterde versie:
 
+// Verbeterde upload functie met betere error handling
+// Vervang in TeamInterface.tsx
+
 const handleFileUpload = async (file: File) => {
   if (!selectedAssignment || !team) {
-    console.error('Missing assignment or team data');
-    alert('Fout: Geen opdracht of team data beschikbaar');
+    alert('Missing assignment or team');
     return;
   }
 
   try {
     setUploading(true);
-    console.log('Starting upload for:', {
-      assignment: selectedAssignment.number,
-      team: team.name,
-      fileSize: file.size,
-      fileType: file.type
-    });
+    console.log('🚀 Starting upload...');
 
-    // Validate file size (max 10MB)
+    // Step 1: Check if storage bucket exists and is accessible
+    console.log('📁 Checking storage access...');
+    
+    try {
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('❌ Buckets error:', bucketsError);
+        throw new Error('Kan storage buckets niet laden. Probeer opnieuw.');
+      }
+      
+      const submissionsBucket = buckets?.find(b => b.name === 'submissions');
+      if (!submissionsBucket) {
+        console.error('❌ Submissions bucket not found in:', buckets?.map(b => b.name));
+        throw new Error('Storage bucket "submissions" niet gevonden. Contacteer de beheerder.');
+      }
+      
+      console.log('✅ Storage bucket found');
+    } catch (storageError) {
+      console.error('Storage check failed:', storageError);
+      throw new Error('Storage niet beschikbaar. Probeer over een paar seconden opnieuw.');
+    }
+
+    // Validate file
     if (file.size > 10 * 1024 * 1024) {
       throw new Error('Bestand te groot. Maximum 10MB toegestaan.');
     }
 
-    // Validate file type
     const isValidType = (
       (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||
       (selectedAssignment.requires_video && file.type.startsWith('video/')) ||
@@ -189,53 +208,64 @@ const handleFileUpload = async (file: File) => {
       throw new Error('Ongeldig bestandstype voor deze opdracht.');
     }
 
-    // Create unique filename
+    // Step 2: Upload file with retry logic
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'unknown';
     const fileName = `${team.id}/${selectedAssignment.number}_${Date.now()}.${fileExt}`;
     
-    console.log('Uploading to path:', fileName);
+    console.log('📁 Uploading file to:', fileName);
 
-    // Check if storage bucket exists
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    if (bucketsError) {
-      console.error('Error checking buckets:', bucketsError);
-      throw new Error('Kan storage buckets niet controleren');
-    }
+    let uploadData;
+    let uploadError;
     
-    const submissionsBucket = buckets?.find(b => b.name === 'submissions');
-    if (!submissionsBucket) {
-      throw new Error('Storage bucket "submissions" niet gevonden. Contacteer de beheerder.');
+    // Try upload with retry
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`Attempt ${attempt}/3`);
+      
+      const result = await supabase.storage
+        .from('submissions')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      uploadData = result.data;
+      uploadError = result.error;
+      
+      if (!uploadError) {
+        console.log('✅ Upload successful on attempt', attempt);
+        break;
+      }
+      
+      console.warn(`❌ Upload attempt ${attempt} failed:`, uploadError);
+      
+      if (attempt < 3) {
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
     }
-
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('submissions')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      throw new Error(`Upload fout: ${uploadError.message}`);
+      console.error('❌ All upload attempts failed:', uploadError);
+      throw new Error(`Upload mislukt na 3 pogingen: ${uploadError.message}`);
     }
 
-    console.log('Upload successful:', uploadData);
+    console.log('✅ File uploaded successfully');
 
-    // Get public URL
+    // Step 3: Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('submissions')
       .getPublicUrl(fileName);
 
-    console.log('Public URL:', publicUrl);
+    console.log('🔗 Public URL:', publicUrl);
 
-    // Prepare submission data
-    const submissionData: any = {
+    // Step 4: Create submission record
+    console.log('💾 Creating submission record...');
+    
+    const submissionData = {
       assignment_id: selectedAssignment.id,
       team_id: team.id,
       game_session_id: team.game_session_id,
-      status: 'pending',
-      description: '',
+      status: 'pending' as const,
       file_path: fileName,
       file_type: file.type,
       file_size: file.size
@@ -243,16 +273,16 @@ const handleFileUpload = async (file: File) => {
 
     // Add URL based on file type
     if (file.type.startsWith('image/')) {
-      submissionData.photo_url = publicUrl;
+      submissionData['photo_url'] = publicUrl;
     } else if (file.type.startsWith('video/')) {
-      submissionData.video_url = publicUrl;
+      submissionData['video_url'] = publicUrl;
     } else if (file.type.startsWith('audio/')) {
-      submissionData.audio_url = publicUrl;
+      submissionData['audio_url'] = publicUrl;
     }
 
-    console.log('Creating submission record:', submissionData);
+    console.log('📝 Submission data:', submissionData);
 
-    // Check if submission already exists
+    // Check if submission already exists and update or insert
     const { data: existingSubmission } = await supabase
       .from('submissions')
       .select('id')
@@ -264,8 +294,7 @@ const handleFileUpload = async (file: File) => {
     let submission;
     
     if (existingSubmission) {
-      // Update existing submission
-      console.log('Updating existing submission:', existingSubmission.id);
+      console.log('Updating existing submission');
       const { data: updatedSubmission, error: updateError } = await supabase
         .from('submissions')
         .update(submissionData)
@@ -274,12 +303,11 @@ const handleFileUpload = async (file: File) => {
         .single();
 
       if (updateError) {
-        console.error('Update submission error:', updateError);
-        throw new Error(`Fout bij updaten: ${updateError.message}`);
+        console.error('❌ Update error:', updateError);
+        throw new Error(`Database update fout: ${updateError.message}`);
       }
       submission = updatedSubmission;
     } else {
-      // Create new submission
       console.log('Creating new submission');
       const { data: newSubmission, error: insertError } = await supabase
         .from('submissions')
@@ -288,15 +316,15 @@ const handleFileUpload = async (file: File) => {
         .single();
 
       if (insertError) {
-        console.error('Insert submission error:', insertError);
-        throw new Error(`Fout bij opslaan: ${insertError.message}`);
+        console.error('❌ Insert error:', insertError);
+        throw new Error(`Database insert fout: ${insertError.message}`);
       }
       submission = newSubmission;
     }
 
-    console.log('Submission saved successfully:', submission);
+    console.log('✅ Submission saved successfully');
 
-    // Update local state
+    // Update UI
     setSubmissions(prev => {
       const filtered = prev.filter(s => s.assignment_id !== selectedAssignment.id);
       return [...filtered, submission];
@@ -308,17 +336,17 @@ const handleFileUpload = async (file: File) => {
     alert('✅ Upload succesvol! Wacht op beoordeling van de jury.');
 
   } catch (error: any) {
-    console.error('Upload error details:', error);
+    console.error('💥 Upload error:', error);
     
-    // More specific error messages
     let errorMessage = 'Er ging iets mis bij het uploaden.';
     
     if (error.message) {
       errorMessage = error.message;
-    } else if (error.error_description) {
-      errorMessage = error.error_description;
-    } else if (error.details) {
-      errorMessage = error.details;
+    }
+    
+    // Add helpful suggestions based on error type
+    if (error.message?.includes('bucket')) {
+      errorMessage += '\n\nTip: Probeer de pagina te vernieuwen en opnieuw te proberen.';
     }
     
     alert(`❌ ${errorMessage}`);
