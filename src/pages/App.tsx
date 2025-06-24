@@ -24,10 +24,10 @@ const App = () => {
   };
 
   // Hash of "" is "-1169789239" - change this to your desired password hash
-  const ADMIN_PASSWORD_HASH = '-1169789239'; 
+  const ADMIN_PASSWORD_HASH = '-1067928817'; 
 
   // To generate a new hash, uncomment this line and check console:
-  console.log('Hash for "jurylandstede":', hashPassword('mynewpassword'));
+  //console.log('Hash for "kkk":', hashPassword('mynewpassword'));
 
   const handleLogin = () => {
     const passwordHash = hashPassword(password);
