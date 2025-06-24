@@ -24,7 +24,7 @@ const App = () => {
   };
 
   // Hash of "jury2025" with salt - dit is de nieuwe hash
-  const ADMIN_PASSWORD_HASH = 'a1b2c3d4e5f6'; // Placeholder - zie hieronder
+  const ADMIN_PASSWORD_HASH = '513efe29405ad71e77f1c902e1d23e1b2506a63da4e2b3651357952112ae80b3'; // Placeholder - zie hieronder
 
   // Temporary: uncomment deze regel om de hash van je wachtwoord te zien
   // React.useEffect(() => {
