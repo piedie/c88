@@ -1538,3 +1538,6 @@ button:disabled {
     align-items: flex-start;
   }
 }
+.text-management-controls { /* styling voor controls */ }
+.text-categories { /* styling voor categorieën */ }
+.text-item { /* styling voor tekst items */ }

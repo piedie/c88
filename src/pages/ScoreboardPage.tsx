@@ -122,28 +122,23 @@ const ScoreboardPage = () => {
       assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
     });
 
-    const teamsArray = Object.values(teamStats).sort((a, b) => {
-      // Primary sort: total points (descending)
-      if (b.total_points !== a.total_points) {
-        return b.total_points - a.total_points;
-      }
-      // Secondary sort: assignments completed (descending) 
-      if (b.assignments_completed !== a.assignments_completed) {
-        return b.assignments_completed - a.assignments_completed;
-      }
-      // Tertiary sort: team ID for consistent ordering
-      return a.id.localeCompare(b.id);
-    });
+   const teamsArray = Object.values(teamStats).sort((a, b) => {
+  // Primary sort: total points (descending)
+  if (b.total_points !== a.total_points) {
+    return b.total_points - a.total_points;
+  }
+  // Secondary sort: assignments completed (descending) 
+  if (b.assignments_completed !== a.assignments_completed) {
+    return b.assignments_completed - a.assignments_completed;
+  }
+  // Tertiary sort: name for consistent ordering (instead of ID)
+  return a.name.localeCompare(b.name);
+});
+
+// Remove the comparison check that's causing issues - always update teams
+setTeams(teamsArray);
     
-    // Only update teams if there's actually a change to prevent unnecessary re-renders
-    const currentTeamsString = JSON.stringify(teams.map(t => ({id: t.id, points: t.total_points})));
-    const newTeamsString = JSON.stringify(teamsArray.map(t => ({id: t.id, points: t.total_points})));
     
-    if (currentTeamsString !== newTeamsString) {
-      setTeams(teamsArray);
-    }
-    setTotalAssignments(scoreData?.length || 0);
-    setUniqueAssignments(uniqueAssignmentIds.size);
 
     // Recent activity (last 10)
     const recent = scoreData?.slice(-10).reverse().map(score => ({

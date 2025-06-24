@@ -12,26 +12,26 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
 
-  const ADMIN_PASSWORD = 'jury2025'; // Verander dit naar je gewenste wachtwoord
+  // Simple hash function for password (you can also use a more secure one)
+  const hashPassword = (pwd: string): string => {
+    let hash = 0;
+    for (let i = 0; i < pwd.length; i++) {
+      const char = pwd.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
+  };
 
-  useEffect(() => {
-    // Check URL hash for direct scoreboard access
-    const hash = window.location.hash;
-    if (hash === '#scoreboard' || hash === '#/scoreboard') {
-      setCurrentPage('scoreboard');
-      setIsAuthenticated(true); // Scoreboard needs no auth
-    }
-    
-    // Check if already authenticated
-    const savedAuth = localStorage.getItem('c88-admin-auth');
-    if (savedAuth === 'true') {
-      setIsAuthenticated(true);
-      setCurrentPage('admin');
-    }
-  }, []);
+  // Hash of "" is "-1169789239" - change this to your desired password hash
+  const ADMIN_PASSWORD_HASH = '-1169789239'; 
+
+  // To generate a new hash, uncomment this line and check console:
+  // console.log('Hash for "mynewpassword":', hashPassword('mynewpassword'));
 
   const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
+    const passwordHash = hashPassword(password);
+    if (passwordHash === ADMIN_PASSWORD_HASH) {
       setIsAuthenticated(true);
       setCurrentPage('admin');
       localStorage.setItem('c88-admin-auth', 'true');
