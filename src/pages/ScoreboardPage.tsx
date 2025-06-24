@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 interface Team {
@@ -26,57 +26,54 @@ interface PopularAssignment {
   completion_count: number;
 }
 
+interface RecentActivity {
+  assignment_id: number;
+  team_name: string;
+  team_category: string;
+  points: number;
+  created_at: string;
+}
+
 const ScoreboardPage = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [popularAssignments, setPopularAssignments] = useState<PopularAssignment[]>([]);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: {total: number, teams: number, average: number}}>({});
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [totalAssignments, setTotalAssignments] = useState(0);
   const [uniqueAssignments, setUniqueAssignments] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Ref to track the latest fetch request
+  const latestFetchRef = useRef<number>(0);
 
-  useEffect(() => {
-    fetchData();
+  // Optimized data fetching with race condition protection
+  const fetchData = useCallback(async () => {
+    const requestId = Date.now();
+    latestFetchRef.current = requestId;
     
-    // Data refresh every 15 seconds to prevent flickering
-    const dataInterval = setInterval(() => {
-      fetchData();
-    }, 15000);
-    
-    return () => {
-      clearInterval(dataInterval);
-    };
-  }, []);
-
-  // Separate useEffect for timer that depends on config
-  useEffect(() => {
-    if (!config) return;
-    
-    // Timer updates every second for smooth countdown
-    const timerInterval = setInterval(() => {
-      updateTimer();
-    }, 1000);
-    
-    // Initial timer calculation
-    updateTimer();
-    
-    return () => {
-      clearInterval(timerInterval);
-    };
-  }, [config]);
-
-  const fetchData = async () => {
     try {
       const { data: configData } = await supabase.from('config').select('*').single();
       
+      // Check if this is still the latest request
+      if (latestFetchRef.current !== requestId) return;
+      
       if (configData) {
-        setConfig(configData);
+        setConfig(prevConfig => {
+          if (JSON.stringify(prevConfig) === JSON.stringify(configData)) {
+            return prevConfig;
+          }
+          return configData;
+        });
       }
 
-      if (!configData) return;
+      if (!configData) {
+        setIsLoading(false);
+        return;
+      }
 
-      // Get teams with scores in één query voor consistentie
+      // Get teams with scores in one query for consistency
       const { data: scoreData } = await supabase
         .from('scores')
         .select(`
@@ -87,7 +84,10 @@ const ScoreboardPage = () => {
           teams!inner(name, category)
         `)
         .eq('game_session_id', configData.game_session_id)
-        .order('created_at', { ascending: false }); // Zorg voor consistente volgorde
+        .order('created_at', { ascending: false });
+
+      // Check again if this is still the latest request
+      if (latestFetchRef.current !== requestId) return;
 
       // Process team statistics
       const teamStats: {[key: string]: Team} = {};
@@ -122,53 +122,42 @@ const ScoreboardPage = () => {
           teamStats[teamId].normal_points += score.points;
         }
         
-        // Count popular assignments
         assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
       });
 
-      // Set the totals voor de live stats banner
-      setTotalAssignments(totalAssignmentsCount);
-      setUniqueAssignments(uniqueAssignmentIds.size);
-
-      // Verbeterde ranking logica met meer stabiele sorting
+      // Sort teams with improved stability
       const teamsArray = Object.values(teamStats).sort((a, b) => {
-        // Primary sort: total points (descending)
+        // Primary: total points (descending)
         if (b.total_points !== a.total_points) {
           return b.total_points - a.total_points;
         }
-        // Secondary sort: assignments completed (descending) 
+        // Secondary: assignments completed (descending) 
         if (b.assignments_completed !== a.assignments_completed) {
           return b.assignments_completed - a.assignments_completed;
         }
-        // Tertiary sort: creativity points (descending)
+        // Tertiary: creativity points (descending)
         if (b.creativity_points !== a.creativity_points) {
           return b.creativity_points - a.creativity_points;
         }
-        // Final sort: name for consistent ordering
+        // Final: name for consistent ordering
         return a.name.localeCompare(b.name);
       });
 
-      // Update states in batch om race conditions te voorkomen
-      setTeams(teamsArray);
-      
-      // Recent activity (last 10)
-      const recent = scoreData?.slice(0, 10).map(score => ({
+      // Process other data
+      const recent: RecentActivity[] = scoreData?.slice(0, 10).map(score => ({
         assignment_id: score.assignment_id,
         team_name: (score.teams as any).name,
         team_category: (score.teams as any).category,
         points: score.points,
         created_at: score.created_at,
       })) || [];
-      setRecentActivity(recent);
 
-      // Popular assignments
       const popular = Object.entries(assignmentCounts)
         .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
         .sort((a, b) => b.completion_count - a.completion_count)
         .slice(0, 5);
-      setPopularAssignments(popular);
 
-      // Category stats - weighted by team count
+      // Calculate category stats
       const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
       teamsArray.forEach(team => {
         if (!catStats[team.category]) {
@@ -178,23 +167,55 @@ const ScoreboardPage = () => {
         catStats[team.category].teams += 1;
       });
       
-      // Calculate averages
       Object.keys(catStats).forEach(category => {
         catStats[category].average = catStats[category].total / catStats[category].teams;
       });
+
+      // Final check before updating state
+      if (latestFetchRef.current !== requestId) return;
+
+      // Update all state with functional updates to prevent race conditions
+      setTeams(prevTeams => {
+        const newTeamsString = JSON.stringify(teamsArray);
+        const prevTeamsString = JSON.stringify(prevTeams);
+        return newTeamsString === prevTeamsString ? prevTeams : teamsArray;
+      });
       
-      setCategoryStats(catStats);
+      setRecentActivity(prevActivity => {
+        const newActivityString = JSON.stringify(recent);
+        const prevActivityString = JSON.stringify(prevActivity);
+        return newActivityString === prevActivityString ? prevActivity : recent;
+      });
+      
+      setPopularAssignments(prevPopular => {
+        const newPopularString = JSON.stringify(popular);
+        const prevPopularString = JSON.stringify(prevPopular);
+        return newPopularString === prevPopularString ? prevPopular : popular;
+      });
+      
+      setCategoryStats(prevStats => {
+        const newStatsString = JSON.stringify(catStats);
+        const prevStatsString = JSON.stringify(prevStats);
+        return newStatsString === prevStatsString ? prevStats : catStats;
+      });
+
+      // Update simple values
+      setTotalAssignments(prev => prev === totalAssignmentsCount ? prev : totalAssignmentsCount);
+      setUniqueAssignments(prev => prev === uniqueAssignmentIds.size ? prev : uniqueAssignmentIds.size);
+      setIsLoading(false);
 
     } catch (error) {
       console.error('Error fetching scoreboard data:', error);
-      // Optioneel: toon een error message aan de gebruiker
+      if (latestFetchRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
 
-  const updateTimer = () => {
+  // Timer update function
+  const updateTimer = useCallback(() => {
     if (!config) return;
     
-    // Always calculate fresh from current time, regardless of when config was fetched
     if (config.timer_is_running && config.timer_start_time) {
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
@@ -202,18 +223,39 @@ const ScoreboardPage = () => {
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else if (config.timer_start_time) {
-      // Timer was started but is now paused - calculate remaining from when it was paused
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
       const elapsed = Math.floor((now - startTime) / 1000);
       const remaining = Math.max(0, config.timer_duration - elapsed);
       setCurrentTime(remaining);
     } else {
-      // Timer never started
       setCurrentTime(config.timer_duration || 0);
     }
-  };
+  }, [config]);
 
+  // Effects
+  useEffect(() => {
+    fetchData();
+    
+    const dataInterval = setInterval(fetchData, 15000);
+    
+    return () => {
+      clearInterval(dataInterval);
+    };
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!config) return;
+    
+    const timerInterval = setInterval(updateTimer, 1000);
+    updateTimer(); // Initial call
+    
+    return () => {
+      clearInterval(timerInterval);
+    };
+  }, [config, updateTimer]);
+
+  // Helper functions
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -224,7 +266,6 @@ const ScoreboardPage = () => {
     if (!config?.timer_duration) return 'Geen timer ingesteld';
     if (!config.timer_start_time) return 'Klaar om te starten';
     
-    // Check if time is up
     if (config.timer_start_time) {
       const startTime = new Date(config.timer_start_time).getTime();
       const now = new Date().getTime();
@@ -243,7 +284,7 @@ const ScoreboardPage = () => {
   };
 
   const getBestCreativityTeam = () => {
-    return teams.sort((a, b) => b.creativity_points - a.creativity_points)[0];
+    return [...teams].sort((a, b) => b.creativity_points - a.creativity_points)[0];
   };
 
   const getGameDuration = () => {
@@ -287,7 +328,6 @@ const ScoreboardPage = () => {
   const getMomentumLeader = () => {
     if (!config?.timer_start_time) return null;
     
-    // Get activity from last 15 minutes
     const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
     const recentTeamActivity: {[key: string]: number} = {};
     
@@ -342,7 +382,18 @@ const ScoreboardPage = () => {
     URL.revokeObjectURL(url);
   };
 
-  if (!config) return <div className="loading">Laden...</div>;
+  const getCategoryName = (category: string) => {
+    switch (category) {
+      case 'AVFV': return 'AV/Fotograaf';
+      case 'MR': return 'Mediaredactie';
+      case 'JEM': return 'Junior Event Manager';
+      default: return category;
+    }
+  };
+
+  if (isLoading || !config) {
+    return <div className="loading">Laden...</div>;
+  }
 
   return (
     <div className="scoreboard">
@@ -388,7 +439,7 @@ const ScoreboardPage = () => {
         <h2>🏆 Team rankings</h2>
         <div className="rankings-grid">
           {teams.slice(0, 10).map((team, index) => (
-            <div key={team.id} className={`rank-card rank-${index + 1}`}>
+            <div key={`${team.id}-${team.total_points}`} className={`rank-card rank-${index + 1}`}>
               <div className="rank-number">#{index + 1}</div>
               <div className="team-info">
                 <div className="team-name">{team.name}</div>
@@ -406,11 +457,9 @@ const ScoreboardPage = () => {
           <h3>👑 Opleiding leiders</h3>
           {['AVFV', 'MR', 'JEM'].map(category => {
             const leader = getTopTeamByCategory(category);
-            const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
-                               category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
             return (
               <div key={category} className="category-leader">
-                <span className="category-name">{categoryName}</span>
+                <span className="category-name">{getCategoryName(category)}</span>
                 <span className="leader-info">
                   {leader ? `${leader.name} (${leader.total_points} punten)` : 'Geen teams'}
                 </span>
@@ -470,34 +519,26 @@ const ScoreboardPage = () => {
           <h3>📊 Opleiding prestaties (gemiddeld)</h3>
           {Object.entries(categoryStats)
             .sort(([,a], [,b]) => b.average - a.average)
-            .map(([category, stats]) => {
-              const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
-                                 category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
-              return (
-                <div key={category} className="category-total">
-                  <span className="category-name">{categoryName}</span>
-                  <span className="category-points">
-                    {stats.average.toFixed(1)} gem. ({stats.teams} teams)
-                  </span>
-                </div>
-              );
-            })}
+            .map(([category, stats]) => (
+              <div key={category} className="category-total">
+                <span className="category-name">{getCategoryName(category)}</span>
+                <span className="category-points">
+                  {stats.average.toFixed(1)} gem. ({stats.teams} teams)
+                </span>
+              </div>
+            ))}
         </div>
 
         <div className="stat-card">
           <h3>🏆 Opleiding totalen (absoluut)</h3>
           {Object.entries(categoryStats)
             .sort(([,a], [,b]) => b.total - a.total)
-            .map(([category, stats]) => {
-              const categoryName = category === 'AVFV' ? 'AV/Fotograaf' : 
-                                 category === 'MR' ? 'Mediaredactie' : 'Junior Event Manager';
-              return (
-                <div key={category} className="category-total">
-                  <span className="category-name">{categoryName}</span>
-                  <span className="category-points">{stats.total} punten</span>
-                </div>
-              );
-            })}
+            .map(([category, stats]) => (
+              <div key={category} className="category-total">
+                <span className="category-name">{getCategoryName(category)}</span>
+                <span className="category-points">{stats.total} punten</span>
+              </div>
+            ))}
         </div>
 
         <div className="stat-card">
@@ -517,7 +558,7 @@ const ScoreboardPage = () => {
           <h3>⚡ Live activiteit</h3>
           <div className="recent-activity">
             {recentActivity.length > 0 ? recentActivity.slice(0, 5).map((activity, index) => (
-              <div key={index} className="activity-item">
+              <div key={`${activity.team_name}-${activity.assignment_id}-${activity.created_at}`} className="activity-item">
                 <span className="activity-emoji">{getPointTypeEmoji(activity.points)}</span>
                 <span className="activity-text">
                   <strong>{activity.team_name}</strong> deed opdracht {activity.assignment_id}
