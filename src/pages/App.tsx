@@ -3,9 +3,10 @@ import AdminPage from './AdminPage';
 import TeamManagement from './TeamManagement';
 import ScoreboardPage from './ScoreboardPage';
 import LogbookPage from './LogbookPage';
+import TextManagement from './TextManagement'; // Add this import
 import '../styles/App.css';
 
-type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'login';
+type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'login'; // Add 'texts'
 
 // In App.tsx, vervang de password sectie met deze veiligere versie:
 
@@ -78,6 +79,8 @@ const App = () => {
         return <ScoreboardPage />;
       case 'logbook':
         return <LogbookPage />;
+      case 'texts':
+        return <TextManagement />; // Add this case
       case 'login':
         return (
           <div className="login-container">
@@ -171,6 +174,12 @@ const App = () => {
             onClick={() => handlePageChange('scoreboard')}
           >
             📊 Scoreboard
+          </button>
+          <button 
+            className={currentPage === 'texts' ? 'nav-active' : ''}
+            onClick={() => handlePageChange('texts')}
+          >
+            📝 Teksten
           </button>
           <button className="logout-btn" onClick={handleLogout}>
             🚪 Uitloggen
