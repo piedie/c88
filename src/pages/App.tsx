@@ -4,17 +4,60 @@ import TeamManagement from './TeamManagement';
 import ScoreboardPage from './ScoreboardPage';
 import LogbookPage from './LogbookPage';
 import TextManagement from './TextManagement';
-import AssignmentManagement from './AssignmentManagement'; // Nieuwe import
+import AssignmentManagement from './AssignmentManagement';
+import TeamInterface from './TeamInterface'; // Nieuwe component
 import '../styles/App.css';
 
-type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'login'; // Voeg 'assignments' toe
+type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'login';
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [teamToken, setTeamToken] = useState<string | null>(null);
 
-  // Simple but more secure hash function
+  // Check for team URLs on mount
+  useEffect(() => {
+    const checkTeamRoute = () => {
+      const hash = window.location.hash;
+      const path = window.location.pathname;
+      
+      // Check for team routes: /team/abc123 or #/team/abc123
+      const teamMatch = path.match(/^\/team\/([a-zA-Z0-9]{8})$/) || 
+                       hash.match(/^#\/team\/([a-zA-Z0-9]{8})$/);
+      
+      if (teamMatch) {
+        setTeamToken(teamMatch[1]);
+        return;
+      }
+      
+      // Check for scoreboard hash
+      if (hash === '#scoreboard') {
+        setCurrentPage('scoreboard');
+        return;
+      }
+      
+      // Check if previously authenticated
+      const wasAuthenticated = localStorage.getItem('c88-admin-auth');
+      if (wasAuthenticated === 'true') {
+        setIsAuthenticated(true);
+        setCurrentPage('admin');
+      }
+    };
+
+    checkTeamRoute();
+    
+    // Listen for hash changes
+    const handlePopState = () => checkTeamRoute();
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
   const hashPassword = async (pwd: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(pwd + 'c88-salt');
@@ -60,12 +103,18 @@ const App = () => {
     setCurrentPage(page);
   };
 
+  // Update team URL generation in TeamManagement
+  const generateTeamURL = (token: string) => {
+    // Voor Netlify gebruiken we hash routing voor teams
+    return `${window.location.origin}/#/team/${token}`;
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'admin':
         return <AdminPage />;
       case 'teams':
-        return <TeamManagement />;
+        return <TeamManagement generateTeamURL={generateTeamURL} />;
       case 'scoreboard':
         return <ScoreboardPage />;
       case 'logbook':
@@ -73,7 +122,7 @@ const App = () => {
       case 'texts':
         return <TextManagement />;
       case 'assignments':
-        return <AssignmentManagement />; // Nieuwe case
+        return <AssignmentManagement />;
       case 'login':
         return (
           <div className="login-container">
@@ -107,7 +156,12 @@ const App = () => {
     }
   };
 
-  // If viewing scoreboard publicly, show minimal interface
+  // Team interface rendering (heeft voorrang)
+  if (teamToken) {
+    return <TeamInterface token={teamToken} />;
+  }
+
+  // Public scoreboard (zonder authenticatie)
   if (currentPage === 'scoreboard' && !isAuthenticated) {
     return (
       <div className="app">
@@ -128,7 +182,7 @@ const App = () => {
     );
   }
 
-  // Full authenticated interface
+  // Login screen
   if (!isAuthenticated) {
     return (
       <div className="app">
@@ -137,6 +191,7 @@ const App = () => {
     );
   }
 
+  // Authenticated admin interface
   return (
     <div className="app">
       <nav className="navbar">

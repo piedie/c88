@@ -51,7 +51,8 @@ const TeamManagement = () => {
   };
 
   const getTeamURL = (token: string) => {
-    return `${window.location.origin}/team/${token}`;
+    // Voor Netlify gebruiken we hash routing
+    return `${window.location.origin}/#/team/${token}`;
   };
 
   const addTeam = async () => {

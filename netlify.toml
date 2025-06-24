@@ -1,3 +1,18 @@
 [build]
-  command = "npm run build"
   publish = "dist"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Als je ook functies gebruikt:
+[build.environment]
+  NODE_VERSION = "18"
+
+# Voor betere performance:
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"
