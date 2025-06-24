@@ -5,10 +5,11 @@ import ScoreboardPage from './ScoreboardPage';
 import LogbookPage from './LogbookPage';
 import TextManagement from './TextManagement';
 import AssignmentManagement from './AssignmentManagement';
-import TeamInterface from './TeamInterface'; // Nieuwe component
+import JuryReviewInterface from './JuryReviewInterface'; // Nieuwe import
+import TeamInterface from './TeamInterface';
 import '../styles/App.css';
 
-type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'login';
+type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'review' | 'login'; // Voeg 'review' toe
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
@@ -123,6 +124,8 @@ const App = () => {
         return <TextManagement />;
       case 'assignments':
         return <AssignmentManagement />;
+      case 'review':
+        return <JuryReviewInterface />; // Nieuwe case
       case 'login':
         return (
           <div className="login-container">
@@ -216,6 +219,12 @@ const App = () => {
             onClick={() => handlePageChange('assignments')}
           >
             📝 Opdrachten
+          </button>
+          <button 
+            className={currentPage === 'review' ? 'nav-active' : ''}
+            onClick={() => handlePageChange('review')}
+          >
+            👩‍⚖️ Review
           </button>
           <button 
             className={currentPage === 'logbook' ? 'nav-active' : ''}

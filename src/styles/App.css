@@ -3193,3 +3193,673 @@ button:disabled {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+/* Jury Review Interface CSS - voeg toe aan App.css */
+
+.jury-review {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.review-header h2 {
+  color: #1f2937;
+  font-size: 2rem;
+  margin: 0;
+}
+
+.review-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.review-stats .stat {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.stat.pending {
+  background: #fef3cd;
+  color: #92400e;
+}
+
+.stat.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.stat.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Filters */
+.review-filters {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row select,
+.bulk-toggle {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+}
+
+.bulk-toggle {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.bulk-toggle.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.bulk-toggle:hover {
+  background: #e5e7eb;
+}
+
+.bulk-toggle.active:hover {
+  background: #2563eb;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.bulk-actions span {
+  font-weight: 500;
+  color: #374151;
+}
+
+.bulk-approve,
+.bulk-reject,
+.bulk-clear {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bulk-approve {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bulk-approve:hover {
+  background: #bbf7d0;
+}
+
+.bulk-reject {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.bulk-reject:hover {
+  background: #fecaca;
+}
+
+.bulk-clear {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.bulk-clear:hover {
+  background: #e5e7eb;
+}
+
+/* Submissions Grid */
+.submissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.submission-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 2px solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  position: relative;
+}
+
+.submission-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.submission-card.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.bulk-checkbox {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+/* Submission Content */
+.submission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.submission-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.assignment-number {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.team-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+.team-category {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.submission-status {
+  font-size: 1.5rem;
+}
+
+.assignment-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+  line-height: 1.3;
+}
+
+/* Media Preview */
+.media-preview {
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.preview-image,
+.preview-video {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.preview-video {
+  background: #000;
+}
+
+.audio-player {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.preview-audio {
+  width: 100%;
+  max-width: 300px;
+}
+
+.submission-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.4;
+  margin: 0.5rem 0;
+}
+
+/* Footer */
+.submission-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.submission-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.points-info {
+  font-weight: 600;
+  color: #374151;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quick-approve,
+.quick-reject,
+.detailed-review {
+  background: none;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-approve:hover {
+  background: #dcfce7;
+  border-color: #10b981;
+}
+
+.quick-reject:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.detailed-review:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.jury-notes {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border-left: 4px solid #3b82f6;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+/* No Submissions */
+.no-submissions {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.no-submissions h3 {
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.no-submissions p {
+  color: #6b7280;
+}
+
+/* Review Modal */
+.review-modal {
+  background: white;
+  border-radius: 1rem;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+}
+
+.modal-header button {
+  background: #f3f4f6;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  transition: background-color 0.2s;
+}
+
+.modal-header button:hover {
+  background: #e5e7eb;
+}
+
+.modal-content {
+  padding: 1.5rem;
+}
+
+.submission-details {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.submission-details h4 {
+  margin: 0 0 0.75rem 0;
+  color: #1f2937;
+  font-size: 1.125rem;
+}
+
+.submission-details p {
+  margin: 0.25rem 0;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+/* Large Media View */
+.large-media {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.large-image {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.large-video {
+  width: 100%;
+  max-height: 400px;
+  border-radius: 0.5rem;
+  background: #000;
+}
+
+.large-audio {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Points Configuration */
+.points-config {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f0f9ff;
+  border-radius: 0.5rem;
+  border: 1px solid #e0f2fe;
+}
+
+.points-config h4 {
+  margin: 0 0 1rem 0;
+  color: #0c4a6e;
+  font-size: 1rem;
+}
+
+.points-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.points-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.points-options input[type="radio"] {
+  margin: 0;
+}
+
+.points-options input[type="number"] {
+  width: 4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.double-notice {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* Jury Notes Input */
+.jury-notes-input {
+  margin-bottom: 1.5rem;
+}
+
+.jury-notes-input label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.jury-notes-input textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.jury-notes-input textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Review Actions */
+.review-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.approve-btn,
+.reject-btn,
+.review-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.approve-btn {
+  background: #10b981;
+  color: white;
+}
+
+.approve-btn:hover {
+  background: #059669;
+}
+
+.reject-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.reject-btn:hover {
+  background: #dc2626;
+}
+
+.review-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.review-btn:hover {
+  background: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .jury-review {
+    padding: 1rem;
+  }
+  
+  .review-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .review-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .submissions-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .submission-card {
+    padding: 1rem;
+  }
+  
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .bulk-actions {
+    flex-wrap: wrap;
+  }
+  
+  .submission-footer {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .review-actions {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .review-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .review-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .submission-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .quick-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Loading States */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  font-size: 1.125rem;
+  color: #6b7280;
+}
+
+/* Status specific styling */
+.submission-card.bg-green-100 {
+  border-color: #10b981;
+}
+
+.submission-card.bg-red-100 {
+  border-color: #ef4444;
+}
+
+.submission-card.bg-yellow-100 {
+  border-color: #f59e0b;
+}
+
+.submission-card.bg-blue-100 {
+  border-color: #3b82f6;
+}
