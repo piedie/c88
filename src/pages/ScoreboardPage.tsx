@@ -39,179 +39,158 @@ const ScoreboardPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Vervang de fetchData functie in ScoreboardPage.tsx met deze verbeterde versie:
-
-// Vervang de fetchData functie in ScoreboardPage.tsx met deze verbeterde versie:
-
-const fetchData = async () => {
-  try {
-    const { data: configData } = await supabase.from('config').select('*').single();
+    // Data refresh every 15 seconds to prevent flickering
+    const dataInterval = setInterval(() => {
+      fetchData();
+    }, 15000);
     
-    if (configData) {
-      setConfig(configData);
+    return () => {
+      clearInterval(dataInterval);
+    };
+  }, []);
+
+  // Separate useEffect for timer that depends on config
+  useEffect(() => {
+    if (!config) return;
+    
+    // Timer updates every second for smooth countdown
+    const timerInterval = setInterval(() => {
+      updateTimer();
+    }, 1000);
+    
+    // Initial timer calculation
+    updateTimer();
+    
+    return () => {
+      clearInterval(timerInterval);
+    };
+  }, [config]);
+
+  const fetchData = async () => {
+    try {
+      const { data: configData } = await supabase.from('config').select('*').single();
+      
+      if (configData) {
+        setConfig(configData);
+      }
+
+      if (!configData) return;
+
+      // Get teams with scores in één query voor consistentie
+      const { data: scoreData } = await supabase
+        .from('scores')
+        .select(`
+          team_id,
+          assignment_id,
+          points,
+          created_at,
+          teams!inner(name, category)
+        `)
+        .eq('game_session_id', configData.game_session_id)
+        .order('created_at', { ascending: false }); // Zorg voor consistente volgorde
+
+      // Process team statistics
+      const teamStats: {[key: string]: Team} = {};
+      const assignmentCounts: {[key: number]: number} = {};
+      const uniqueAssignmentIds = new Set<number>();
+      let totalAssignmentsCount = 0;
+      
+      scoreData?.forEach(score => {
+        const teamId = score.team_id;
+        const team = (score.teams as any);
+        
+        if (!teamStats[teamId]) {
+          teamStats[teamId] = {
+            id: teamId,
+            name: team.name,
+            category: team.category,
+            total_points: 0,
+            assignments_completed: 0,
+            creativity_points: 0,
+            normal_points: 0,
+          };
+        }
+        
+        teamStats[teamId].total_points += score.points;
+        teamStats[teamId].assignments_completed += 1;
+        uniqueAssignmentIds.add(score.assignment_id);
+        totalAssignmentsCount++;
+        
+        if (score.points === 5) {
+          teamStats[teamId].creativity_points += score.points;
+        } else {
+          teamStats[teamId].normal_points += score.points;
+        }
+        
+        // Count popular assignments
+        assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
+      });
+
+      // Set the totals voor de live stats banner
+      setTotalAssignments(totalAssignmentsCount);
+      setUniqueAssignments(uniqueAssignmentIds.size);
+
+      // Verbeterde ranking logica met meer stabiele sorting
+      const teamsArray = Object.values(teamStats).sort((a, b) => {
+        // Primary sort: total points (descending)
+        if (b.total_points !== a.total_points) {
+          return b.total_points - a.total_points;
+        }
+        // Secondary sort: assignments completed (descending) 
+        if (b.assignments_completed !== a.assignments_completed) {
+          return b.assignments_completed - a.assignments_completed;
+        }
+        // Tertiary sort: creativity points (descending)
+        if (b.creativity_points !== a.creativity_points) {
+          return b.creativity_points - a.creativity_points;
+        }
+        // Final sort: name for consistent ordering
+        return a.name.localeCompare(b.name);
+      });
+
+      // Update states in batch om race conditions te voorkomen
+      setTeams(teamsArray);
+      
+      // Recent activity (last 10)
+      const recent = scoreData?.slice(0, 10).map(score => ({
+        assignment_id: score.assignment_id,
+        team_name: (score.teams as any).name,
+        team_category: (score.teams as any).category,
+        points: score.points,
+        created_at: score.created_at,
+      })) || [];
+      setRecentActivity(recent);
+
+      // Popular assignments
+      const popular = Object.entries(assignmentCounts)
+        .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
+        .sort((a, b) => b.completion_count - a.completion_count)
+        .slice(0, 5);
+      setPopularAssignments(popular);
+
+      // Category stats - weighted by team count
+      const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
+      teamsArray.forEach(team => {
+        if (!catStats[team.category]) {
+          catStats[team.category] = {total: 0, teams: 0, average: 0};
+        }
+        catStats[team.category].total += team.total_points;
+        catStats[team.category].teams += 1;
+      });
+      
+      // Calculate averages
+      Object.keys(catStats).forEach(category => {
+        catStats[category].average = catStats[category].total / catStats[category].teams;
+      });
+      
+      setCategoryStats(catStats);
+
+    } catch (error) {
+      console.error('Error fetching scoreboard data:', error);
+      // Optioneel: toon een error message aan de gebruiker
     }
+  };
 
-    if (!configData) return;
-
-    // Get teams with scores in één query voor consistentie
-    const { data: scoreData } = await supabase
-      .from('scores')
-      .select(`
-        team_id,
-        assignment_id,
-        points,
-        created_at,
-        teams!inner(name, category)
-      `)
-      .eq('game_session_id', configData.game_session_id)
-      .order('created_at', { ascending: false }); // Zorg voor consistente volgorde
-
-    // Process team statistics
-    const teamStats: {[key: string]: Team} = {};
-    const assignmentCounts: {[key: number]: number} = {};
-    const uniqueAssignmentIds = new Set<number>();
-    let totalAssignmentsCount = 0;
-    
-    scoreData?.forEach(score => {
-      const teamId = score.team_id;
-      const team = (score.teams as any);
-      
-      if (!teamStats[teamId]) {
-        teamStats[teamId] = {
-          id: teamId,
-          name: team.name,
-          category: team.category,
-          total_points: 0,
-          assignments_completed: 0,
-          creativity_points: 0,
-          normal_points: 0,
-        };
-      }
-      
-      teamStats[teamId].total_points += score.points;
-      teamStats[teamId].assignments_completed += 1;
-      uniqueAssignmentIds.add(score.assignment_id);
-      totalAssignmentsCount++;
-      
-      if (score.points === 5) {
-        teamStats[teamId].creativity_points += score.points;
-      } else {
-        teamStats[teamId].normal_points += score.points;
-      }
-      
-      // Count popular assignments
-      assignmentCounts[score.assignment_id] = (assignmentCounts[score.assignment_id] || 0) + 1;
-    });
-
-    // Set the totals voor de live stats banner
-    setTotalAssignments(totalAssignmentsCount);
-    setUniqueAssignments(uniqueAssignmentIds.size);
-
-    // Verbeterde ranking logica met meer stabiele sorting
-    const teamsArray = Object.values(teamStats).sort((a, b) => {
-      // Primary sort: total points (descending)
-      if (b.total_points !== a.total_points) {
-        return b.total_points - a.total_points;
-      }
-      // Secondary sort: assignments completed (descending) 
-      if (b.assignments_completed !== a.assignments_completed) {
-        return b.assignments_completed - a.assignments_completed;
-      }
-      // Tertiary sort: creativity points (descending)
-      if (b.creativity_points !== a.creativity_points) {
-        return b.creativity_points - a.creativity_points;
-      }
-      // Final sort: name for consistent ordering
-      return a.name.localeCompare(b.name);
-    });
-
-    // Update states in batch om race conditions te voorkomen
-    setTeams(teamsArray);
-    
-    // Recent activity (last 10)
-    const recent = scoreData?.slice(0, 10).map(score => ({
-      assignment_id: score.assignment_id,
-      team_name: (score.teams as any).name,
-      team_category: (score.teams as any).category,
-      points: score.points,
-      created_at: score.created_at,
-    })) || [];
-    setRecentActivity(recent);
-
-    // Popular assignments
-    const popular = Object.entries(assignmentCounts)
-      .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
-      .sort((a, b) => b.completion_count - a.completion_count)
-      .slice(0, 5);
-    setPopularAssignments(popular);
-
-    // Category stats - weighted by team count
-    const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
-    teamsArray.forEach(team => {
-      if (!catStats[team.category]) {
-        catStats[team.category] = {total: 0, teams: 0, average: 0};
-      }
-      catStats[team.category].total += team.total_points;
-      catStats[team.category].teams += 1;
-    });
-    
-    // Calculate averages
-    Object.keys(catStats).forEach(category => {
-      catStats[category].average = catStats[category].total / catStats[category].teams;
-    });
-    
-    setCategoryStats(catStats);
-
-  } catch (error) {
-    console.error('Error fetching scoreboard data:', error);
-    // Optioneel: toon een error message aan de gebruiker
-  }
-};
-
-    // Update states in batch om race conditions te voorkomen
-    setTeams(teamsArray);
-    setTotalAssignments(totalAssignmentsCount);
-    setUniqueAssignments(uniqueAssignmentIds.size);
-    
-    // Recent activity (last 10)
-    const recent = scoreData?.slice(0, 10).map(score => ({
-      assignment_id: score.assignment_id,
-      team_name: (score.teams as any).name,
-      team_category: (score.teams as any).category,
-      points: score.points,
-      created_at: score.created_at,
-    })) || [];
-    setRecentActivity(recent);
-
-    // Popular assignments
-    const popular = Object.entries(assignmentCounts)
-      .map(([id, count]) => ({ assignment_id: parseInt(id), completion_count: count }))
-      .sort((a, b) => b.completion_count - a.completion_count)
-      .slice(0, 5);
-    setPopularAssignments(popular);
-
-    // Category stats - weighted by team count
-    const catStats: {[key: string]: {total: number, teams: number, average: number}} = {};
-    teamsArray.forEach(team => {
-      if (!catStats[team.category]) {
-        catStats[team.category] = {total: 0, teams: 0, average: 0};
-      }
-      catStats[team.category].total += team.total_points;
-      catStats[team.category].teams += 1;
-    });
-    
-    // Calculate averages
-    Object.keys(catStats).forEach(category => {
-      catStats[category].average = catStats[category].total / catStats[category].teams;
-    });
-    
-    setCategoryStats(catStats);
-
-  } catch (error) {
-    console.error('Error fetching scoreboard data:', error);
-    // Optioneel: toon een error message aan de gebruiker
-  }
-};
   const updateTimer = () => {
     if (!config) return;
     
@@ -574,7 +553,6 @@ const fetchData = async () => {
           </div>
         </div>
       </div>
-  
 
       {teams.length === 0 && (
         <div className="no-teams-message">
