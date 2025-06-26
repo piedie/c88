@@ -1,68 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-// Voeg deze debug logging toe aan het begin van je TeamInterface component:
-
-const TeamInterface = ({ token }: { token: string }) => {
-  console.log('🎯 TeamInterface loaded with token:', token); // Debug log
-  
-  // Controleer of token geldig is
-  if (!token || token.length !== 8) {
-    console.error('❌ Invalid token received:', token);
-    return (
-      <div className="team-error">
-        <h2>❌ Ongeldige Team Link</h2>
-        <p>De team link is ongeldig. Controleer de QR code en probeer opnieuw.</p>
-        <button onClick={() => window.location.href = window.location.origin}>
-          🏠 Terug naar start
-        </button>
-      </div>
-    );
-  }
-
-  // Rest van je component code blijft hetzelfde...
-  const [team, setTeam] = useState<Team | null>(null);
-  // etc...
-
-  // Voeg ook debug logging toe aan loadTeamData:
-  const loadTeamData = async () => {
-    try {
-      setLoading(true);
-      console.log('📊 Loading team data for token:', token);
-      
-      // Find team by token
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('access_token', token)
-        .single();
-
-      console.log('📊 Team query result:', { teamData, teamError }); // Debug log
-
-      if (teamError || !teamData) {
-        console.error('❌ Team not found:', teamError);
-        setError('Team niet gevonden. Controleer de QR code en probeer opnieuw.');
-        return;
-      }
-
-      console.log('✅ Team found:', teamData.name);
-      setTeam(teamData);
-
-      // Rest van je loadTeamData code...
-    } catch (err) {
-      console.error('💥 Error loading team data:', err);
-      setError('Er ging iets mis bij het laden van de gegevens.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
 interface Team {
   id: string;
   name: string;
   category: string;
   access_token: string;
+  game_session_id: string;
 }
 
 interface Assignment {
@@ -89,6 +33,22 @@ interface Submission {
 }
 
 const TeamInterface = ({ token }: { token: string }) => {
+  console.log('🎯 TeamInterface loaded with token:', token);
+  
+  // Controleer of token geldig is
+  if (!token || token.length !== 8) {
+    console.error('❌ Invalid token received:', token);
+    return (
+      <div className="team-error">
+        <h2>❌ Ongeldige Team Link</h2>
+        <p>De team link is ongeldig. Controleer de QR code en probeer opnieuw.</p>
+        <button onClick={() => window.location.href = window.location.origin}>
+          🏠 Terug naar start
+        </button>
+      </div>
+    );
+  }
+
   const [team, setTeam] = useState<Team | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -117,6 +77,7 @@ const TeamInterface = ({ token }: { token: string }) => {
   const loadTeamData = async () => {
     try {
       setLoading(true);
+      console.log('📊 Loading team data for token:', token);
       
       // Find team by token
       const { data: teamData, error: teamError } = await supabase
@@ -125,11 +86,15 @@ const TeamInterface = ({ token }: { token: string }) => {
         .eq('access_token', token)
         .single();
 
+      console.log('📊 Team query result:', { teamData, teamError });
+
       if (teamError || !teamData) {
+        console.error('❌ Team not found:', teamError);
         setError('Team niet gevonden. Controleer de QR code en probeer opnieuw.');
         return;
       }
 
+      console.log('✅ Team found:', teamData.name);
       setTeam(teamData);
 
       // Load assignments
@@ -159,14 +124,14 @@ const TeamInterface = ({ token }: { token: string }) => {
       }
 
     } catch (err) {
-      console.error('Error loading team data:', err);
+      console.error('💥 Error loading team data:', err);
       setError('Er ging iets mis bij het laden van de gegevens.');
     } finally {
       setLoading(false);
     }
   };
 
-  // NIEUWE COMPRESSIE FUNCTIES
+  // COMPRESSIE FUNCTIES
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current!;
@@ -215,7 +180,6 @@ const TeamInterface = ({ token }: { token: string }) => {
 
   const compressVideo = async (file: File): Promise<File> => {
     // Voor video's kunnen we alleen de kwaliteit verlagen via een canvas approach
-    // Dit is een beperkte compressie, maar helpt wel
     return new Promise((resolve) => {
       const video = document.createElement('video');
       const canvas = canvasRef.current!;
@@ -292,7 +256,7 @@ const TeamInterface = ({ token }: { token: string }) => {
     }
   };
 
-  // VERBETERDE UPLOAD FUNCTIE MET RETRY EN PROGRESS
+  // UPLOAD FUNCTIE MET RETRY EN PROGRESS
   const uploadWithRetry = async (file: File, fileName: string, maxRetries = 3): Promise<any> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -328,7 +292,7 @@ const TeamInterface = ({ token }: { token: string }) => {
     }
   };
 
-  // HOOFDUPLOAD FUNCTIE - VOLLEDIG VERVANGEN
+  // HOOFDUPLOAD FUNCTIE
   const handleFileUpload = async (file: File) => {
     if (!selectedAssignment || !team) {
       alert('❌ Ontbrekende gegevens. Probeer opnieuw.');
@@ -502,7 +466,7 @@ const TeamInterface = ({ token }: { token: string }) => {
     setCompressedSize(0);
   };
 
-  // HELPER FUNCTIES (blijven hetzelfde)
+  // HELPER FUNCTIES
   const getSubmissionForAssignment = (assignmentId: string) => {
     return submissions.find(s => s.assignment_id === assignmentId);
   };
@@ -564,7 +528,7 @@ const TeamInterface = ({ token }: { token: string }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // REST VAN DE COMPONENT (filters, rendering, etc.) - blijft hetzelfde
+  // FILTERS
   const filteredAssignments = assignments.filter(assignment => {
     const matchesSearch = assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          assignment.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -718,7 +682,7 @@ const TeamInterface = ({ token }: { token: string }) => {
         </div>
       )}
 
-      {/* VERBETERDE UPLOAD MODAL */}
+      {/* Upload Modal */}
       {uploadModal && selectedAssignment && (
         <div className="modal-overlay" onClick={() => setUploadModal(false)}>
           <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
@@ -733,7 +697,7 @@ const TeamInterface = ({ token }: { token: string }) => {
                 <p>{selectedAssignment.description}</p>
               </div>
               
-              {/* Progress Indicators - NIEUW */}
+              {/* Progress Indicators */}
               {uploading && (
                 <div style={{ marginBottom: '1rem' }}>
                   {/* Compression Progress */}
@@ -770,7 +734,7 @@ const TeamInterface = ({ token }: { token: string }) => {
                     </div>
                   </div>
 
-                  {/* File Size Info - NIEUW */}
+                  {/* File Size Info */}
                   {originalSize > 0 && compressedSize > 0 && (
                     <div style={{ 
                       marginTop: '0.75rem', 
@@ -818,7 +782,7 @@ const TeamInterface = ({ token }: { token: string }) => {
                   {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
                 </div>
 
-                {/* Tips - NIEUW */}
+                {/* Tips */}
                 <div style={{ 
                   marginTop: '1rem', 
                   padding: '0.75rem', 
