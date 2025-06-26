@@ -135,11 +135,7 @@ const generateTeamURL = (token: string) => {
     setCurrentPage(page);
   };
 
-  // Update team URL generation in TeamManagement
-  const generateTeamURL = (token: string) => {
-    // Voor Netlify gebruiken we hash routing voor teams
-    return `${window.location.origin}/#/team/${token}`;
-  };
+  
 
   const renderPage = () => {
     switch (currentPage) {
