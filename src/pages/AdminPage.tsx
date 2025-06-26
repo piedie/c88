@@ -17,6 +17,11 @@ interface Config {
   game_session_id: string;
 }
 
+interface SubmissionStatus {
+  status: 'pending' | 'approved' | 'rejected' | 'needs_review';
+  points_awarded: number;
+}
+
 const AdminPage = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
@@ -25,11 +30,11 @@ const AdminPage = () => {
   const [timerInput, setTimerInput] = useState('');
   const [teamScores, setTeamScores] = useState<{[key: string]: number}>({});
   const [currentTime, setCurrentTime] = useState(0);
-  const [pausedTime, setPausedTime] = useState(0);
   const [showCreativityModal, setShowCreativityModal] = useState(false);
   const [creativityTeam, setCreativityTeam] = useState<Team | null>(null);
   const [creativityAssignment, setCreativityAssignment] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
+  const [submissionStatuses, setSubmissionStatuses] = useState<{[key: string]: SubmissionStatus}>({});
 
   const generateQRCode = () => {
     const url = `${window.location.origin}${window.location.pathname}#scoreboard`;
@@ -97,6 +102,26 @@ const AdminPage = () => {
     setCompletedAssignments(completed);
   };
 
+  // NIEUWE FUNCTIE: Laad submission statuses voor een team
+  const fetchSubmissionStatuses = async (teamId: string) => {
+    if (!config) return;
+    
+    const { data: submissions } = await supabase
+      .from('submissions')
+      .select('assignment_id, status, points_awarded')
+      .eq('team_id', teamId)
+      .eq('game_session_id', config.game_session_id);
+    
+    const statuses: {[key: string]: SubmissionStatus} = {};
+    submissions?.forEach(sub => {
+      statuses[sub.assignment_id] = {
+        status: sub.status,
+        points_awarded: sub.points_awarded
+      };
+    });
+    setSubmissionStatuses(statuses);
+  };
+
   const updateTimer = async () => {
     // Fetch latest config to get current timer state
     const { data: latestConfig } = await supabase.from('config').select('*').single();
@@ -122,22 +147,86 @@ const AdminPage = () => {
   const handleTeamClick = (team: Team) => {
     setSelectedTeam(team);
     fetchCompletedAssignments(team.id);
+    fetchSubmissionStatuses(team.id); // Laad ook submission statuses
   };
 
+  // VERBETERDE HANDLE ASSIGNMENT CLICK MET REVIEW INTEGRATIE
   const handleAssignmentClick = async (assignmentId: number) => {
     if (!selectedTeam || !config) return;
     
+    // Check of er al een submission bestaat voor deze opdracht
+    const { data: existingSubmission } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('team_id', selectedTeam.id)
+      .eq('assignment_id', assignmentId.toString())
+      .eq('game_session_id', config.game_session_id)
+      .single();
+
+    if (existingSubmission) {
+      // Er bestaat al een submission
+      if (existingSubmission.status === 'approved') {
+        alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId} via de review pagina. Gebruik de review pagina om punten aan te passen.`);
+        return;
+      } else if (existingSubmission.status === 'pending') {
+        if (confirm(`Team "${selectedTeam.name}" heeft een submission ingediend voor opdracht ${assignmentId} die nog wacht op beoordeling.\n\nWil je handmatig punten toekennen? (Dit markeert de submission als "handmatig goedgekeurd")`)) {
+          // Markeer submission als handmatig goedgekeurd
+          await supabase
+            .from('submissions')
+            .update({
+              status: 'approved',
+              points_awarded: config.double_points_active ? 2 : 1,
+              jury_notes: 'Handmatig goedgekeurd via jury pagina',
+              reviewed_at: new Date().toISOString()
+            })
+            .eq('id', existingSubmission.id);
+        } else {
+          return; // Gebruiker heeft geannuleerd
+        }
+      } else if (existingSubmission.status === 'rejected') {
+        if (confirm(`Team "${selectedTeam.name}" heeft een afgewezen submission voor opdracht ${assignmentId}.\n\nWil je alsnog handmatig punten toekennen?`)) {
+          // Update de afgewezen submission
+          await supabase
+            .from('submissions')
+            .update({
+              status: 'approved',
+              points_awarded: config.double_points_active ? 2 : 1,
+              jury_notes: 'Handmatig goedgekeurd via jury pagina na afwijzing',
+              reviewed_at: new Date().toISOString()
+            })
+            .eq('id', existingSubmission.id);
+        } else {
+          return;
+        }
+      }
+    }
+    
+    // Ga door met normale punten toekenning
     const finalPoints = config.double_points_active ? 2 : 1;
     
-    await supabase.from('scores').insert([{
+    // Voeg score toe aan scores tabel
+    const { error: scoreError } = await supabase.from('scores').insert([{
       team_id: selectedTeam.id,
       assignment_id: assignmentId,
       points: finalPoints,
       game_session_id: config.game_session_id,
+      created_via: 'jury' // Markering dat dit via jury pagina kwam
     }]);
+
+    if (scoreError) {
+      // Check of het een duplicate key error is
+      if (scoreError.message.includes('duplicate') || scoreError.code === '23505') {
+        alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId}. Verwijder eerst de bestaande punten in het logboek.`);
+      } else {
+        console.error('Score insert error:', scoreError);
+        alert('❌ Fout bij toekennen van punten');
+      }
+      return;
+    }
     
     setSelectedTeam(null);
     setCompletedAssignments([]);
+    setSubmissionStatuses({});
     fetchData(); // Refresh scores
   };
 
@@ -260,6 +349,7 @@ const AdminPage = () => {
       assignment_id: assignmentId,
       points: 5, // Creativity bonus
       game_session_id: config.game_session_id,
+      created_via: 'creativity'
     }]);
     
     setShowCreativityModal(false);
@@ -378,6 +468,30 @@ const AdminPage = () => {
   const teamsByCategory = (category: string) => 
     teams.filter(t => t.category === category);
 
+  // NIEUWE COMPONENT: Submission Indicator
+  const SubmissionIndicator = ({ assignmentId }: { assignmentId: number }) => {
+    const submissionStatus = submissionStatuses[assignmentId.toString()];
+    
+    if (!submissionStatus) return null;
+    
+    const getIndicator = () => {
+      switch (submissionStatus.status) {
+        case 'pending': 
+          return <span className="submission-indicator pending" title="Upload wacht op beoordeling">📤</span>;
+        case 'approved': 
+          return <span className="submission-indicator approved" title="Upload goedgekeurd">✅</span>;
+        case 'rejected': 
+          return <span className="submission-indicator rejected" title="Upload afgekeurd">❌</span>;
+        case 'needs_review':
+          return <span className="submission-indicator review" title="Upload vraagt herziening">🔍</span>;
+        default: 
+          return null;
+      }
+    };
+    
+    return getIndicator();
+  };
+
   if (!config) return <div>Laden...</div>;
 
   return (
@@ -386,6 +500,11 @@ const AdminPage = () => {
         {!selectedTeam ? (
           <>
             <h2>👥 Kies team</h2>
+            {!canAssignPoints && (
+              <div className="game-state-warning">
+                ⚠️ {getGameStateMessage()} - Punten toekenning is uitgeschakeld
+              </div>
+            )}
             <div className="team-categories">
               {['AVFV', 'MR', 'JEM'].map(category => (
                 <div key={category} className="team-category-column">
@@ -396,6 +515,7 @@ const AdminPage = () => {
                         key={team.id} 
                         onClick={() => handleTeamClick(team)}
                         disabled={!canAssignPoints}
+                        title={canAssignPoints ? `Selecteer ${team.name}` : 'Spel is niet actief'}
                       >
                         ⭐ {team.name} ({teamScores[team.id] || 0} punten)
                       </button>
@@ -408,23 +528,56 @@ const AdminPage = () => {
         ) : (
           <>
             <h2>📋 Kies opdracht voor {selectedTeam.name}</h2>
-            <div className="grid">
-              {Array.from({ length: 88 }, (_, i) => {
-                const assignmentId = i + 1;
-                const isCompleted = completedAssignments.includes(assignmentId);
-                return (
-                  <button
-                    key={assignmentId}
-                    onClick={() => handleAssignmentClick(assignmentId)}
-                    disabled={isCompleted}
-                    className={isCompleted ? 'completed' : ''}
-                  >
-                    #{assignmentId}
-                  </button>
-                );
-              })}
+            <div className="assignment-grid-wrapper">
+              <div className={`assignment-grid-overlay ${canAssignPoints ? 'enabled' : 'disabled'}`}>
+                {!canAssignPoints && (
+                  <div style={{ 
+                    background: 'rgba(0,0,0,0.8)', 
+                    color: 'white', 
+                    padding: '2rem', 
+                    borderRadius: '1rem',
+                    textAlign: 'center',
+                    fontWeight: '600'
+                  }}>
+                    🚫 {getGameStateMessage()}
+                  </div>
+                )}
+              </div>
+              <div className="grid">
+                {Array.from({ length: 88 }, (_, i) => {
+                  const assignmentId = i + 1;
+                  const isCompleted = completedAssignments.includes(assignmentId);
+                  const submissionStatus = submissionStatuses[assignmentId.toString()];
+                  
+                  return (
+                    <button
+                      key={assignmentId}
+                      onClick={() => handleAssignmentClick(assignmentId)}
+                      disabled={isCompleted || !canAssignPoints}
+                      className={`assignment-btn ${isCompleted ? 'completed' : ''}`}
+                      title={
+                        isCompleted 
+                          ? 'Al voltooid' 
+                          : submissionStatus 
+                            ? `Opdracht ${assignmentId} - Heeft ${submissionStatus.status} submission`
+                            : `Opdracht ${assignmentId} toekennen`
+                      }
+                    >
+                      <span>#{assignmentId}</span>
+                      <SubmissionIndicator assignmentId={assignmentId} />
+                      {/* Status indicator onderaan */}
+                      {submissionStatus && (
+                        <div className={`assignment-review-status has-${submissionStatus.status}`}></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <button className="cancel" onClick={() => setSelectedTeam(null)}>
+            <button className="cancel" onClick={() => {
+              setSelectedTeam(null);
+              setSubmissionStatuses({});
+            }}>
               ← Terug
             </button>
           </>
