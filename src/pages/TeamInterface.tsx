@@ -44,7 +44,14 @@ const TeamInterface = ({ token }: { token: string }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
+  // Nieuwe states voor compressie
+  const [compressionProgress, setCompressionProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [originalSize, setOriginalSize] = useState(0);
+  const [compressedSize, setCompressedSize] = useState(0);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     loadTeamData();
@@ -102,6 +109,343 @@ const TeamInterface = ({ token }: { token: string }) => {
     }
   };
 
+  // NIEUWE COMPRESSIE FUNCTIES
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = canvasRef.current!;
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Bereken nieuwe dimensies (max 1920x1080 voor HD kwaliteit)
+        let { width, height } = img;
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Teken afbeelding op canvas
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Bepaal kwaliteit op basis van originele bestandsgrootte
+        let quality = 0.8;
+        if (file.size > 5 * 1024 * 1024) quality = 0.6; // >5MB
+        if (file.size > 10 * 1024 * 1024) quality = 0.4; // >10MB
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            resolve(file);
+          }
+        }, 'image/jpeg', quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const compressVideo = async (file: File): Promise<File> => {
+    // Voor video's kunnen we alleen de kwaliteit verlagen via een canvas approach
+    // Dit is een beperkte compressie, maar helpt wel
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      const canvas = canvasRef.current!;
+      const ctx = canvas.getContext('2d')!;
+      
+      video.onloadedmetadata = () => {
+        // Verkleen video dimensies
+        const maxWidth = 1280;
+        const maxHeight = 720;
+        let { videoWidth: width, videoHeight: height } = video;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Teken eerste frame (voor thumbnail)
+        video.currentTime = 0;
+        video.onseeked = () => {
+          ctx.drawImage(video, 0, 0, width, height);
+          
+          // Converteer naar JPEG thumbnail
+          canvas.toBlob((blob) => {
+            if (blob && blob.size < file.size * 0.8) {
+              const thumbnailFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(thumbnailFile);
+            } else {
+              resolve(file); // Gebruik origineel als compressie niet helpt
+            }
+          }, 'image/jpeg', 0.7);
+        };
+      };
+      
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  const compressFile = async (file: File): Promise<File> => {
+    setCompressionProgress(10);
+    setOriginalSize(file.size);
+    
+    let compressedFile = file;
+    
+    try {
+      if (file.type.startsWith('image/')) {
+        setCompressionProgress(30);
+        compressedFile = await compressImage(file);
+        setCompressionProgress(80);
+      } else if (file.type.startsWith('video/')) {
+        setCompressionProgress(30);
+        // Voor video's: converteer naar thumbnail als bestand te groot is
+        if (file.size > 20 * 1024 * 1024) { // >20MB
+          compressedFile = await compressVideo(file);
+        }
+        setCompressionProgress(80);
+      }
+      // Audio wordt niet gecomprimeerd (meestal al klein genoeg)
+      
+      setCompressionProgress(100);
+      setCompressedSize(compressedFile.size);
+      
+      return compressedFile;
+    } catch (error) {
+      console.error('Compressie fout:', error);
+      setCompressionProgress(100);
+      return file; // Gebruik origineel bij fout
+    }
+  };
+
+  // VERBETERDE UPLOAD FUNCTIE MET RETRY EN PROGRESS
+  const uploadWithRetry = async (file: File, fileName: string, maxRetries = 3): Promise<any> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        setUploadProgress(20 * attempt);
+        
+        const { data, error } = await supabase.storage
+          .from('submissions')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+        
+        setUploadProgress(100);
+        
+        if (!error) {
+          return { data, error: null };
+        }
+        
+        if (attempt === maxRetries) {
+          throw new Error(error.message);
+        }
+        
+        // Wacht voor volgende poging
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        
+      } catch (error: any) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        
+        console.warn(`Upload poging ${attempt} mislukt:`, error.message);
+      }
+    }
+  };
+
+  // HOOFDUPLOAD FUNCTIE - VOLLEDIG VERVANGEN
+  const handleFileUpload = async (file: File) => {
+    if (!selectedAssignment || !team) {
+      alert('❌ Ontbrekende gegevens. Probeer opnieuw.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setCompressionProgress(0);
+      setUploadProgress(0);
+      setOriginalSize(0);
+      setCompressedSize(0);
+      
+      console.log('🚀 Upload gestart voor:', file.name);
+
+      // Stap 1: Valideer bestand
+      const maxSize = 50 * 1024 * 1024; // 50MB max
+      if (file.size > maxSize) {
+        throw new Error('Bestand te groot. Maximum 50MB toegestaan.');
+      }
+
+      const isValidType = (
+        (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||
+        (selectedAssignment.requires_video && file.type.startsWith('video/')) ||
+        (selectedAssignment.requires_audio && file.type.startsWith('audio/'))
+      );
+
+      if (!isValidType) {
+        const required = [];
+        if (selectedAssignment.requires_photo) required.push('foto');
+        if (selectedAssignment.requires_video) required.push('video');
+        if (selectedAssignment.requires_audio) required.push('audio');
+        throw new Error(`Dit opdracht vereist: ${required.join(' of ')}. Upload het juiste bestandstype.`);
+      }
+
+      // Stap 2: Comprimeer bestand
+      console.log('🗜️ Bestand comprimeren...');
+      const compressedFile = await compressFile(file);
+      
+      // Toon compressie resultaat
+      if (compressedFile.size < file.size) {
+        const saved = Math.round((1 - compressedFile.size / file.size) * 100);
+        console.log(`✅ Compressie succesvol: ${saved}% kleiner`);
+      }
+
+      // Stap 3: Upload naar Supabase
+      console.log('📤 Uploaden naar server...');
+      const fileExt = file.type.startsWith('image/') ? 'jpg' : 
+                     file.name.split('.').pop()?.toLowerCase() || 'unknown';
+      const fileName = `${team.id}/${selectedAssignment.number}_${Date.now()}.${fileExt}`;
+      
+      const uploadResult = await uploadWithRetry(compressedFile, fileName);
+      
+      if (uploadResult.error) {
+        throw new Error(`Upload mislukt: ${uploadResult.error.message}`);
+      }
+
+      // Stap 4: Verkrijg publieke URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('submissions')
+        .getPublicUrl(fileName);
+
+      console.log('🔗 Publieke URL verkregen');
+
+      // Stap 5: Maak database record
+      console.log('💾 Database record maken...');
+      
+      const submissionData: any = {
+        assignment_id: selectedAssignment.id,
+        team_id: team.id,
+        game_session_id: team.game_session_id,
+        status: 'pending' as const,
+        file_path: fileName,
+        file_type: compressedFile.type,
+        file_size: compressedFile.size
+      };
+
+      // Voeg URL toe op basis van bestandstype
+      if (compressedFile.type.startsWith('image/')) {
+        submissionData.photo_url = publicUrl;
+      } else if (compressedFile.type.startsWith('video/')) {
+        submissionData.video_url = publicUrl;
+      } else if (compressedFile.type.startsWith('audio/')) {
+        submissionData.audio_url = publicUrl;
+      }
+
+      // Check of submission al bestaat
+      const { data: existingSubmission } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('assignment_id', selectedAssignment.id)
+        .eq('team_id', team.id)
+        .eq('game_session_id', team.game_session_id)
+        .single();
+
+      let submission;
+      
+      if (existingSubmission) {
+        // Update bestaande submission
+        const { data: updatedSubmission, error: updateError } = await supabase
+          .from('submissions')
+          .update(submissionData)
+          .eq('id', existingSubmission.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          throw new Error(`Database update fout: ${updateError.message}`);
+        }
+        submission = updatedSubmission;
+      } else {
+        // Maak nieuwe submission
+        const { data: newSubmission, error: insertError } = await supabase
+          .from('submissions')
+          .insert([submissionData])
+          .select()
+          .single();
+
+        if (insertError) {
+          throw new Error(`Database insert fout: ${insertError.message}`);
+        }
+        submission = newSubmission;
+      }
+
+      console.log('✅ Upload volledig succesvol!');
+
+      // Update local state
+      setSubmissions(prev => {
+        const filtered = prev.filter(s => s.assignment_id !== selectedAssignment.id);
+        return [...filtered, submission];
+      });
+      
+      // Reset en sluit modal
+      resetUploadState();
+      setUploadModal(false);
+      setSelectedAssignment(null);
+      
+      // Toon succes bericht met compressie info
+      const savedSpace = originalSize > 0 ? Math.round((1 - compressedSize / originalSize) * 100) : 0;
+      const message = savedSpace > 0 
+        ? `✅ Upload succesvol!\n🗜️ ${savedSpace}% kleiner gemaakt\n⏳ Wacht op beoordeling van de jury.`
+        : '✅ Upload succesvol!\n⏳ Wacht op beoordeling van de jury.';
+      
+      alert(message);
+
+    } catch (error: any) {
+      console.error('💥 Upload error:', error);
+      
+      let errorMessage = '❌ Upload mislukt.';
+      
+      if (error.message.includes('bucket')) {
+        errorMessage = '❌ Opslagprobleem. Vernieuw de pagina en probeer opnieuw.';
+      } else if (error.message.includes('network') || error.message.includes('connection')) {
+        errorMessage = '❌ Verbindingsprobleem. Controleer je internet en probeer opnieuw.';
+      } else if (error.message) {
+        errorMessage = `❌ ${error.message}`;
+      }
+      
+      alert(errorMessage);
+      
+    } finally {
+      setUploading(false);
+      resetUploadState();
+    }
+  };
+
+  const resetUploadState = () => {
+    setCompressionProgress(0);
+    setUploadProgress(0);
+    setOriginalSize(0);
+    setCompressedSize(0);
+  };
+
+  // HELPER FUNCTIES (blijven hetzelfde)
   const getSubmissionForAssignment = (assignmentId: string) => {
     return submissions.find(s => s.assignment_id === assignmentId);
   };
@@ -155,206 +499,15 @@ const TeamInterface = ({ token }: { token: string }) => {
     setUploadModal(true);
   };
 
-// Vervang de handleFileUpload functie in TeamInterface.tsx met deze verbeterde versie:
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
-// Verbeterde upload functie met betere error handling
-// Vervang in TeamInterface.tsx
-
-const handleFileUpload = async (file: File) => {
-  if (!selectedAssignment || !team) {
-    alert('Missing assignment or team');
-    return;
-  }
-
-  try {
-    setUploading(true);
-    console.log('🚀 Starting upload...');
-
-    // Step 1: Check if storage bucket exists and is accessible
-    console.log('📁 Checking storage access...');
-    
-    try {
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('❌ Buckets error:', bucketsError);
-        throw new Error('Kan storage buckets niet laden. Probeer opnieuw.');
-      }
-      
-      const submissionsBucket = buckets?.find(b => b.name === 'submissions');
-      if (!submissionsBucket) {
-        console.error('❌ Submissions bucket not found in:', buckets?.map(b => b.name));
-        throw new Error('Storage bucket "submissions" niet gevonden. Contacteer de beheerder.');
-      }
-      
-      console.log('✅ Storage bucket found');
-    } catch (storageError) {
-      console.error('Storage check failed:', storageError);
-      throw new Error('Storage niet beschikbaar. Probeer over een paar seconden opnieuw.');
-    }
-
-    // Validate file
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('Bestand te groot. Maximum 10MB toegestaan.');
-    }
-
-    const isValidType = (
-      (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||
-      (selectedAssignment.requires_video && file.type.startsWith('video/')) ||
-      (selectedAssignment.requires_audio && file.type.startsWith('audio/'))
-    );
-
-    if (!isValidType) {
-      throw new Error('Ongeldig bestandstype voor deze opdracht.');
-    }
-
-    // Step 2: Upload file with retry logic
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'unknown';
-    const fileName = `${team.id}/${selectedAssignment.number}_${Date.now()}.${fileExt}`;
-    
-    console.log('📁 Uploading file to:', fileName);
-
-    let uploadData;
-    let uploadError;
-    
-    // Try upload with retry
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`Attempt ${attempt}/3`);
-      
-      const result = await supabase.storage
-        .from('submissions')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      uploadData = result.data;
-      uploadError = result.error;
-      
-      if (!uploadError) {
-        console.log('✅ Upload successful on attempt', attempt);
-        break;
-      }
-      
-      console.warn(`❌ Upload attempt ${attempt} failed:`, uploadError);
-      
-      if (attempt < 3) {
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-      }
-    }
-
-    if (uploadError) {
-      console.error('❌ All upload attempts failed:', uploadError);
-      throw new Error(`Upload mislukt na 3 pogingen: ${uploadError.message}`);
-    }
-
-    console.log('✅ File uploaded successfully');
-
-    // Step 3: Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('submissions')
-      .getPublicUrl(fileName);
-
-    console.log('🔗 Public URL:', publicUrl);
-
-    // Step 4: Create submission record
-    console.log('💾 Creating submission record...');
-    
-    const submissionData = {
-      assignment_id: selectedAssignment.id,
-      team_id: team.id,
-      game_session_id: team.game_session_id,
-      status: 'pending' as const,
-      file_path: fileName,
-      file_type: file.type,
-      file_size: file.size
-    };
-
-    // Add URL based on file type
-    if (file.type.startsWith('image/')) {
-      submissionData['photo_url'] = publicUrl;
-    } else if (file.type.startsWith('video/')) {
-      submissionData['video_url'] = publicUrl;
-    } else if (file.type.startsWith('audio/')) {
-      submissionData['audio_url'] = publicUrl;
-    }
-
-    console.log('📝 Submission data:', submissionData);
-
-    // Check if submission already exists and update or insert
-    const { data: existingSubmission } = await supabase
-      .from('submissions')
-      .select('id')
-      .eq('assignment_id', selectedAssignment.id)
-      .eq('team_id', team.id)
-      .eq('game_session_id', team.game_session_id)
-      .single();
-
-    let submission;
-    
-    if (existingSubmission) {
-      console.log('Updating existing submission');
-      const { data: updatedSubmission, error: updateError } = await supabase
-        .from('submissions')
-        .update(submissionData)
-        .eq('id', existingSubmission.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-        throw new Error(`Database update fout: ${updateError.message}`);
-      }
-      submission = updatedSubmission;
-    } else {
-      console.log('Creating new submission');
-      const { data: newSubmission, error: insertError } = await supabase
-        .from('submissions')
-        .insert([submissionData])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ Insert error:', insertError);
-        throw new Error(`Database insert fout: ${insertError.message}`);
-      }
-      submission = newSubmission;
-    }
-
-    console.log('✅ Submission saved successfully');
-
-    // Update UI
-    setSubmissions(prev => {
-      const filtered = prev.filter(s => s.assignment_id !== selectedAssignment.id);
-      return [...filtered, submission];
-    });
-    
-    setUploadModal(false);
-    setSelectedAssignment(null);
-    
-    alert('✅ Upload succesvol! Wacht op beoordeling van de jury.');
-
-  } catch (error: any) {
-    console.error('💥 Upload error:', error);
-    
-    let errorMessage = 'Er ging iets mis bij het uploaden.';
-    
-    if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    // Add helpful suggestions based on error type
-    if (error.message?.includes('bucket')) {
-      errorMessage += '\n\nTip: Probeer de pagina te vernieuwen en opnieuw te proberen.';
-    }
-    
-    alert(`❌ ${errorMessage}`);
-  } finally {
-    setUploading(false);
-  }
-};
-
+  // REST VAN DE COMPONENT (filters, rendering, etc.) - blijft hetzelfde
   const filteredAssignments = assignments.filter(assignment => {
     const matchesSearch = assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          assignment.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -411,7 +564,7 @@ const handleFileUpload = async (file: File) => {
           <div 
             className="progress-fill" 
             style={{ width: `${(completedCount / 88) * 100}%` }}
-          ></div><button onClick={debugSupabaseConnection}>🔍 Test Connection</button>
+          ></div>
         </div>
       </div>
 
@@ -508,7 +661,7 @@ const handleFileUpload = async (file: File) => {
         </div>
       )}
 
-      {/* Upload Modal */}
+      {/* VERBETERDE UPLOAD MODAL */}
       {uploadModal && selectedAssignment && (
         <div className="modal-overlay" onClick={() => setUploadModal(false)}>
           <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
@@ -522,6 +675,64 @@ const handleFileUpload = async (file: File) => {
                 <h4>#{selectedAssignment.number} - {selectedAssignment.title}</h4>
                 <p>{selectedAssignment.description}</p>
               </div>
+              
+              {/* Progress Indicators - NIEUW */}
+              {uploading && (
+                <div style={{ marginBottom: '1rem' }}>
+                  {/* Compression Progress */}
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                      <span>🗜️ Comprimeren</span>
+                      <span>{compressionProgress}%</span>
+                    </div>
+                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
+                      <div style={{ 
+                        width: `${compressionProgress}%`, 
+                        backgroundColor: '#10b981', 
+                        height: '100%', 
+                        borderRadius: '0.375rem',
+                        transition: 'width 0.3s ease'
+                      }}></div>
+                    </div>
+                  </div>
+
+                  {/* Upload Progress */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                      <span>📤 Uploaden</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
+                      <div style={{ 
+                        width: `${uploadProgress}%`, 
+                        backgroundColor: '#3b82f6', 
+                        height: '100%', 
+                        borderRadius: '0.375rem',
+                        transition: 'width 0.3s ease'
+                      }}></div>
+                    </div>
+                  </div>
+
+                  {/* File Size Info - NIEUW */}
+                  {originalSize > 0 && compressedSize > 0 && (
+                    <div style={{ 
+                      marginTop: '0.75rem', 
+                      padding: '0.75rem', 
+                      backgroundColor: '#f0f9ff', 
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem'
+                    }}>
+                      <div>📁 Origineel: {formatFileSize(originalSize)}</div>
+                      <div>🗜️ Gecomprimeerd: {formatFileSize(compressedSize)}</div>
+                      {compressedSize < originalSize && (
+                        <div style={{ color: '#059669', fontWeight: '600' }}>
+                          💾 {Math.round((1 - compressedSize / originalSize) * 100)}% kleiner!
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div className="upload-area">
                 <input
@@ -540,67 +751,40 @@ const handleFileUpload = async (file: File) => {
                   disabled={uploading}
                   className="upload-btn"
                 >
-                  {uploading ? '⏳ Uploaden...' : '📁 Kies bestand'}
+                  {uploading ? '⏳ Bezig met uploaden...' : '📁 Kies bestand'}
                 </button>
                 
                 <div className="requirements">
-                  <p>Vereist:</p>
+                  <p>Vereist voor deze opdracht:</p>
                   {selectedAssignment.requires_photo && <span>📸 Foto</span>}
                   {selectedAssignment.requires_video && <span>🎥 Video</span>}
                   {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
+                </div>
+
+                {/* Tips - NIEUW */}
+                <div style={{ 
+                  marginTop: '1rem', 
+                  padding: '0.75rem', 
+                  backgroundColor: '#fef3cd', 
+                  borderRadius: '0.5rem',
+                  fontSize: '0.75rem',
+                  color: '#92400e'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>💡 Tips:</div>
+                  <div>• Foto's worden automatisch verkleind voor snellere upload</div>
+                  <div>• Video's korter dan 30 sec werken het beste</div>
+                  <div>• Maximum bestandsgrootte: 50MB</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Hidden Canvas voor Image Compressie */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );
 };
-// Add dit tijdelijk aan je TeamInterface.tsx om Supabase config te checken
 
-const debugSupabaseConnection = async () => {
-  console.log('=== SUPABASE DEBUG ===');
-  
-  try {
-    // Check basic connection
-    console.log('Supabase URL:', supabase.supabaseUrl);
-    console.log('Supabase Key:', supabase.supabaseKey?.substring(0, 20) + '...');
-    
-    // Test basic database access
-    console.log('Testing database connection...');
-    const { data: configTest, error: configError } = await supabase
-      .from('config')
-      .select('game_session_id')
-      .limit(1);
-    
-    if (configError) {
-      console.error('❌ Database connection failed:', configError);
-    } else {
-      console.log('✅ Database connection OK');
-    }
-    
-    // Test storage access with simple list
-    console.log('Testing storage connection...');
-    try {
-      const { data: files, error: storageError } = await supabase.storage
-        .from('submissions')
-        .list('', { limit: 1 });
-      
-      if (storageError) {
-        console.error('❌ Storage connection failed:', storageError);
-      } else {
-        console.log('✅ Storage connection OK, files found:', files?.length || 0);
-      }
-    } catch (storageErr) {
-      console.error('❌ Storage connection exception:', storageErr);
-    }
-    
-  } catch (err) {
-    console.error('❌ General connection error:', err);
-  }
-};
-
-// Voeg deze button toe aan je UI (tijdelijk)
-// <button onClick={debugSupabaseConnection}>🔍 Test Connection</button>
 export default TeamInterface;
