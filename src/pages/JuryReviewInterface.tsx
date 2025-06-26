@@ -43,6 +43,7 @@ const JuryReviewInterface = () => {
   const [teams, setTeams] = useState<{id: string, name: string, category: string}[]>([]);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -105,12 +106,13 @@ const JuryReviewInterface = () => {
     }
   };
 
+  // NIEUWE VERBETERDE HANDLE REVIEW FUNCTIE MET SYNCHRONISATIE
   const handleReview = async (submissionId: string, status: 'approved' | 'rejected', points?: number, notes?: string) => {
     try {
       const submission = submissions.find(s => s.id === submissionId);
       if (!submission) return;
 
-      // Calculate points
+      // Bereken punten
       let finalPoints = 0;
       if (status === 'approved') {
         if (customPoints !== null) {
@@ -140,24 +142,43 @@ const JuryReviewInterface = () => {
         return;
       }
 
-      // If approved, also create score record for live scoreboard
+      // NIEUWE LOGICA: Synchroniseer met scores tabel
       if (status === 'approved') {
+        // Voeg score toe aan scores tabel (dit is wat de jury pagina gebruikt)
         const { error: scoreError } = await supabase
           .from('scores')
           .upsert({
             team_id: submission.team_id,
-            assignment_id: submission.assignment_id,
+            assignment_id: parseInt(submission.assignment_id), // Zorg dat dit een number is
             points: finalPoints,
-            game_session_id: config?.game_session_id
+            game_session_id: config?.game_session_id,
+            created_via: 'review' // Markering dat dit via review kwam
           }, {
             onConflict: 'team_id,assignment_id,game_session_id'
           });
 
         if (scoreError) {
           console.error('Error creating score:', scoreError);
+          // Probeer alsnog met string assignment_id als number niet werkt
+          const { error: scoreError2 } = await supabase
+            .from('scores')
+            .upsert({
+              team_id: submission.team_id,
+              assignment_id: submission.assignment_id,
+              points: finalPoints,
+              game_session_id: config?.game_session_id,
+              created_via: 'review'
+            }, {
+              onConflict: 'team_id,assignment_id,game_session_id'
+            });
+          
+          if (scoreError2) {
+            console.error('Error creating score (attempt 2):', scoreError2);
+            alert('Waarschuwing: Punten opgeslagen in review maar niet gesynchroniseerd met jury pagina. Check de database.');
+          }
         }
       } else {
-        // If rejected, remove score if it exists
+        // Als afgekeurd, verwijder score uit scores tabel
         await supabase
           .from('scores')
           .delete()
@@ -173,15 +194,65 @@ const JuryReviewInterface = () => {
           : s
       ));
 
-      // Close modal and reset
+      // Reset en sluit modal
       setReviewModal(false);
       setSelectedSubmission(null);
       setJuryNotes('');
       setCustomPoints(null);
 
+      alert(`✅ ${status === 'approved' ? 'Goedgekeurd' : 'Afgekeurd'} en gesynchroniseerd met jury pagina!`);
+
     } catch (error) {
       console.error('Error in handleReview:', error);
       alert('Er ging iets mis bij het beoordelen');
+    }
+  };
+
+  // NIEUWE SYNCHRONISATIE FUNCTIE
+  const synchronizeAllApprovedSubmissions = async () => {
+    if (!confirm('Wil je alle goedgekeurde submissions synchroniseren met de jury pagina? Dit kan even duren.')) {
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      const approvedSubmissions = submissions.filter(s => s.status === 'approved');
+      let syncedCount = 0;
+      
+      for (const submission of approvedSubmissions) {
+        // Check of er al een score bestaat
+        const { data: existingScore } = await supabase
+          .from('scores')
+          .select('id')
+          .eq('team_id', submission.team_id)
+          .eq('assignment_id', submission.assignment_id)
+          .eq('game_session_id', config?.game_session_id)
+          .single();
+
+        if (!existingScore) {
+          // Voeg ontbrekende score toe
+          const { error } = await supabase
+            .from('scores')
+            .insert({
+              team_id: submission.team_id,
+              assignment_id: submission.assignment_id,
+              points: submission.points_awarded,
+              game_session_id: config?.game_session_id,
+              created_via: 'sync'
+            });
+          
+          if (!error) {
+            syncedCount++;
+          }
+        }
+      }
+      
+      alert(`✅ ${syncedCount} submissions gesynchroniseerd met jury pagina!`);
+    } catch (error) {
+      console.error('Sync error:', error);
+      alert('❌ Fout bij synchroniseren');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -282,12 +353,23 @@ const JuryReviewInterface = () => {
 
   return (
     <div className="jury-review">
+      {/* UPDATED HEADER MET SYNC BUTTON */}
       <div className="review-header">
         <h2>👩‍⚖️ Jury Review</h2>
-        <div className="review-stats">
-          <span className="stat pending">⏳ {pendingCount} wachtend</span>
-          <span className="stat approved">✅ {approvedCount} goedgekeurd</span>
-          <span className="stat rejected">❌ {rejectedCount} afgewezen</span>
+        <div className="header-actions">
+          <button 
+            onClick={synchronizeAllApprovedSubmissions}
+            className="sync-btn"
+            disabled={syncing}
+            title="Synchroniseer alle goedgekeurde submissions met jury pagina"
+          >
+            {syncing ? '🔄 Bezig...' : '🔄 Sync met Jury'}
+          </button>
+          <div className="review-stats">
+            <span className="stat pending">⏳ {pendingCount} wachtend</span>
+            <span className="stat approved">✅ {approvedCount} goedgekeurd</span>
+            <span className="stat rejected">❌ {rejectedCount} afgewezen</span>
+          </div>
         </div>
       </div>
 
@@ -585,6 +667,16 @@ const JuryReviewInterface = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Syncing Overlay */}
+      {syncing && (
+        <div className="syncing-overlay">
+          <div className="syncing-content">
+            <div className="syncing-spinner"></div>
+            <p>Synchroniseren met jury pagina...</p>
           </div>
         </div>
       )}

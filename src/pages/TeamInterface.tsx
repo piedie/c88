@@ -225,36 +225,169 @@ const TeamInterface = ({ token }: { token: string }) => {
   };
 
   const compressFile = async (file: File): Promise<File> => {
-    setCompressionProgress(10);
-    setOriginalSize(file.size);
-    
-    let compressedFile = file;
-    
-    try {
-      if (file.type.startsWith('image/')) {
-        setCompressionProgress(30);
-        compressedFile = await compressImage(file);
-        setCompressionProgress(80);
-      } else if (file.type.startsWith('video/')) {
-        setCompressionProgress(30);
-        // Voor video's: converteer naar thumbnail als bestand te groot is
-        if (file.size > 20 * 1024 * 1024) { // >20MB
+  setCompressionProgress(10);
+  setOriginalSize(file.size);
+  
+  let compressedFile = file;
+  
+  try {
+    if (file.type.startsWith('image/')) {
+      setCompressionProgress(30);
+      compressedFile = await compressImage(file);
+      setCompressionProgress(80);
+    } else if (file.type.startsWith('video/')) {
+      setCompressionProgress(30);
+      
+      // Agressievere video compressie via Canvas + WebRTC
+      if (file.size > 10 * 1024 * 1024) { // >10MB wordt gecomprimeerd
+        try {
+          compressedFile = await compressVideoAdvanced(file);
+          setCompressionProgress(70);
+        } catch (videoError) {
+          console.warn('Video compressie mislukt, probeer thumbnail:', videoError);
+          // Fallback naar thumbnail als video compressie mislukt
           compressedFile = await compressVideo(file);
         }
-        setCompressionProgress(80);
       }
-      // Audio wordt niet gecomprimeerd (meestal al klein genoeg)
-      
-      setCompressionProgress(100);
-      setCompressedSize(compressedFile.size);
-      
-      return compressedFile;
-    } catch (error) {
-      console.error('Compressie fout:', error);
-      setCompressionProgress(100);
-      return file; // Gebruik origineel bij fout
+      setCompressionProgress(80);
     }
+    // Audio blijft ongewijzigd
+    
+    setCompressionProgress(100);
+    setCompressedSize(compressedFile.size);
+    
+    return compressedFile;
+  } catch (error) {
+    console.error('Compressie fout:', error);
+    setCompressionProgress(100);
+    return file;
+  }
+};
+
+// VOEG deze nieuwe functie toe aan TeamInterface.tsx:
+
+const compressVideoAdvanced = async (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext('2d')!;
+    
+    video.onloadedmetadata = () => {
+      const { videoWidth, videoHeight, duration } = video;
+      
+      // Bepaal nieuwe dimensies (agressievere verkleining voor grote bestanden)
+      let targetWidth = videoWidth;
+      let targetHeight = videoHeight;
+      
+      if (file.size > 50 * 1024 * 1024) { // >50MB: zeer agressief
+        const ratio = Math.min(720 / videoWidth, 480 / videoHeight);
+        targetWidth = Math.floor(videoWidth * ratio);
+        targetHeight = Math.floor(videoHeight * ratio);
+      } else if (file.size > 20 * 1024 * 1024) { // >20MB: matig agressief  
+        const ratio = Math.min(1280 / videoWidth, 720 / videoHeight);
+        targetWidth = Math.floor(videoWidth * ratio);
+        targetHeight = Math.floor(videoHeight * ratio);
+      }
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      
+      // Voor zeer lange video's (>30 sec), maak een gecomprimeerde versie
+      if (duration > 30) {
+        // Maak een korte preview (eerste 30 seconden als frames)
+        createVideoPreview(video, canvas, ctx, resolve, file.name);
+      } else {
+        // Voor korte video's, maak een thumbnail
+        video.currentTime = duration / 2; // Midden van video
+        video.onseeked = () => {
+          ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+          
+          // Zeer lage kwaliteit voor grote bestanden
+          const quality = file.size > 50 * 1024 * 1024 ? 0.3 : 0.6;
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Video compressie mislukt'));
+            }
+          }, 'image/jpeg', quality);
+        };
+      }
+    };
+    
+    video.onerror = () => reject(new Error('Video laden mislukt'));
+    video.src = URL.createObjectURL(file);
+  });
+};
+
+// VOEG deze helper functie toe:
+
+const createVideoPreview = (video: HTMLVideoElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resolve: (file: File) => void, originalName: string) => {
+  const frames: string[] = [];
+  const frameCount = 10; // 10 frames voor preview
+  const duration = Math.min(video.duration, 30); // Max 30 seconden
+  let currentFrame = 0;
+  
+  const captureFrame = () => {
+    if (currentFrame >= frameCount) {
+      // Alle frames verzameld, maak een collage
+      createFrameCollage(frames, canvas, ctx, resolve, originalName);
+      return;
+    }
+    
+    video.currentTime = (currentFrame / frameCount) * duration;
+    video.onseeked = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push(canvas.toDataURL('image/jpeg', 0.7));
+      currentFrame++;
+      captureFrame();
+    };
   };
+  
+  captureFrame();
+};
+
+const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resolve: (file: File) => void, originalName: string) => {
+  // Maak een collage van alle frames
+  const cols = 5;
+  const rows = 2;
+  const frameWidth = canvas.width / cols;
+  const frameHeight = canvas.height / rows;
+  
+  canvas.width = frameWidth * cols;
+  canvas.height = frameHeight * rows;
+  
+  let loadedFrames = 0;
+  
+  frames.forEach((frameData, index) => {
+    const img = new Image();
+    img.onload = () => {
+      const x = (index % cols) * frameWidth;
+      const y = Math.floor(index / cols) * frameHeight;
+      ctx.drawImage(img, x, y, frameWidth, frameHeight);
+      
+      loadedFrames++;
+      if (loadedFrames === frames.length) {
+        // Alle frames getekend, maak het finale bestand
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const previewFile = new File([blob], originalName.replace(/\.[^/.]+$/, '_preview.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(previewFile);
+          }
+        }, 'image/jpeg', 0.8);
+      }
+    };
+    img.src = frameData;
+  });
+};
 
   // UPLOAD FUNCTIE MET RETRY EN PROGRESS
   const uploadWithRetry = async (file: File, fileName: string, maxRetries = 3): Promise<any> => {
@@ -309,10 +442,12 @@ const TeamInterface = ({ token }: { token: string }) => {
       console.log('🚀 Upload gestart voor:', file.name);
 
       // Stap 1: Valideer bestand
-      const maxSize = 50 * 1024 * 1024; // 50MB max
+      const maxSize = 150 * 1024 * 1024; // 50MB max
       if (file.size > maxSize) {
-        throw new Error('Bestand te groot. Maximum 50MB toegestaan.');
-      }
+  const fileSizeMB = Math.round(file.size / (1024 * 1024));
+  const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+  throw new Error(`Bestand te groot (${fileSizeMB}MB). Maximum ${maxSizeMB}MB toegestaan. Probeer een korter filmpje of lagere kwaliteit.`);
+}
 
       const isValidType = (
         (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||

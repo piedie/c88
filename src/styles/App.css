@@ -4213,3 +4213,429 @@ button:disabled {
     animation: none;
   }
 }
+/* Voeg deze CSS toe aan App.css - PUNTEN SYNCHRONISATIE FEATURES */
+
+/* Sync Button in Review Interface */
+.sync-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+  color: white !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  font-size: 0.875rem !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3) !important;
+}
+
+.sync-btn:hover {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4) !important;
+}
+
+/* Review Header Layout Update */
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Assignment Button Improvements */
+.assignment-btn {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.25rem !important;
+  padding: 0.5rem !important;
+  min-height: 3rem !important;
+}
+
+.assignment-btn.completed {
+  background: #d1d5db !important;
+  color: #6b7280 !important;
+  cursor: not-allowed !important;
+}
+
+.assignment-btn:not(.completed):hover {
+  background: #dbeafe !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Submission Indicators */
+.submission-indicator {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.submission-indicator.pending {
+  background: #fef3cd;
+  border: 1px solid #f59e0b;
+}
+
+.submission-indicator.approved {
+  background: #dcfce7;
+  border: 1px solid #10b981;
+}
+
+.submission-indicator.rejected {
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+}
+
+/* Enhanced Team Selection */
+.team-column button {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.team-column button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.team-column button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f3f4f6 !important;
+}
+
+/* Game State Warnings */
+.game-state-warning {
+  background: #fef3cd;
+  border: 2px solid #f59e0b;
+  color: #92400e;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-state-warning::before {
+  content: '⚠️';
+  font-size: 1.25rem;
+}
+
+/* Improved Assignment Grid */
+.assignment-grid-wrapper {
+  position: relative;
+}
+
+.assignment-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  z-index: 10;
+}
+
+.assignment-grid-overlay.disabled {
+  display: flex;
+}
+
+.assignment-grid-overlay.enabled {
+  display: none;
+}
+
+/* Review Status Badges in Admin */
+.assignment-review-status {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  right: 0.25rem;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+.assignment-review-status.has-pending {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.assignment-review-status.has-approved {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.assignment-review-status.has-rejected {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* Bulk Actions Enhancement */
+.bulk-actions {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.bulk-actions span {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Enhanced Modal Actions */
+.review-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.approve-btn {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white !important;
+  padding: 1rem 1.5rem !important;
+  border: none !important;
+  border-radius: 0.75rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+.approve-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Points Display Enhancement */
+.points-awarded {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #166534;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.points-awarded::before {
+  content: '🏆';
+  font-size: 1rem;
+}
+
+/* Loading States */
+.syncing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.syncing-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+}
+
+.syncing-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.sync-error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+.sync-error::before {
+  content: '❌ ';
+  margin-right: 0.5rem;
+}
+
+/* Success States */
+.sync-success {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+.sync-success::before {
+  content: '✅ ';
+  margin-right: 0.5rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .review-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .sync-btn {
+    padding: 0.625rem 1rem !important;
+    font-size: 0.8125rem !important;
+  }
+  
+  .review-actions {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .assignment-btn {
+    min-height: 2.5rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  .submission-indicator {
+    width: 1rem !important;
+    height: 1rem !important;
+    font-size: 0.625rem !important;
+  }
+  
+  .bulk-actions {
+    padding: 0.75rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .sync-btn {
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
+  }
+  
+  .assignment-btn:not(.completed):hover {
+    background: #1e293b !important;
+    color: white !important;
+  }
+  
+  .submission-indicator {
+    background: rgba(15, 23, 42, 0.9) !important;
+  }
+  
+  .game-state-warning {
+    background: #1e293b;
+    border-color: #f59e0b;
+    color: #fbbf24;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .submission-indicator {
+    border-width: 2px !important;
+    font-weight: bold !important;
+  }
+  
+  .assignment-btn {
+    border: 2px solid #374151 !important;
+  }
+  
+  .sync-btn {
+    border: 2px solid #4c1d95 !important;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .assignment-btn:hover,
+  .sync-btn:hover,
+  .approve-btn:hover {
+    transform: none !important;
+  }
+  
+  .syncing-spinner {
+    animation: none !important;
+    border-top-color: #3b82f6 !important;
+  }
+  
+  .submission-indicator,
+  .assignment-btn,
+  .sync-btn {
+    transition: none !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .sync-btn,
+  .bulk-actions,
+  .header-actions {
+    display: none !important;
+  }
+  
+  .assignment-btn {
+    border: 1px solid #000 !important;
+    background: white !important;
+    color: black !important;
+  }
+  
+  .submission-indicator {
+    border: 1px solid #000 !important;
+    background: white !important;
+  }
+}
