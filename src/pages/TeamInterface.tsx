@@ -1,6 +1,63 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+// Voeg deze debug logging toe aan het begin van je TeamInterface component:
+
+const TeamInterface = ({ token }: { token: string }) => {
+  console.log('🎯 TeamInterface loaded with token:', token); // Debug log
+  
+  // Controleer of token geldig is
+  if (!token || token.length !== 8) {
+    console.error('❌ Invalid token received:', token);
+    return (
+      <div className="team-error">
+        <h2>❌ Ongeldige Team Link</h2>
+        <p>De team link is ongeldig. Controleer de QR code en probeer opnieuw.</p>
+        <button onClick={() => window.location.href = window.location.origin}>
+          🏠 Terug naar start
+        </button>
+      </div>
+    );
+  }
+
+  // Rest van je component code blijft hetzelfde...
+  const [team, setTeam] = useState<Team | null>(null);
+  // etc...
+
+  // Voeg ook debug logging toe aan loadTeamData:
+  const loadTeamData = async () => {
+    try {
+      setLoading(true);
+      console.log('📊 Loading team data for token:', token);
+      
+      // Find team by token
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('access_token', token)
+        .single();
+
+      console.log('📊 Team query result:', { teamData, teamError }); // Debug log
+
+      if (teamError || !teamData) {
+        console.error('❌ Team not found:', teamError);
+        setError('Team niet gevonden. Controleer de QR code en probeer opnieuw.');
+        return;
+      }
+
+      console.log('✅ Team found:', teamData.name);
+      setTeam(teamData);
+
+      // Rest van je loadTeamData code...
+    } catch (err) {
+      console.error('💥 Error loading team data:', err);
+      setError('Er ging iets mis bij het laden van de gegevens.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 interface Team {
   id: string;
   name: string;

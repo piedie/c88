@@ -17,48 +17,79 @@ const App = () => {
   const [password, setPassword] = useState('');
   const [teamToken, setTeamToken] = useState<string | null>(null);
 
-  // Check for team URLs on mount
-  useEffect(() => {
-    const checkTeamRoute = () => {
-      const hash = window.location.hash;
-      const path = window.location.pathname;
-      
-      // Check for team routes: /team/abc123 or #/team/abc123
-      const teamMatch = path.match(/^\/team\/([a-zA-Z0-9]{8})$/) || 
-                       hash.match(/^#\/team\/([a-zA-Z0-9]{8})$/);
-      
-      if (teamMatch) {
-        setTeamToken(teamMatch[1]);
-        return;
-      }
-      
-      // Check for scoreboard hash
-      if (hash === '#scoreboard') {
-        setCurrentPage('scoreboard');
-        return;
-      }
-      
-      // Check if previously authenticated
-      const wasAuthenticated = localStorage.getItem('c88-admin-auth');
-      if (wasAuthenticated === 'true') {
-        setIsAuthenticated(true);
-        setCurrentPage('admin');
-      }
-    };
+  // Vervang de useEffect routing logic in App.tsx (rond regel 25-55) met deze verbeterde versie:
 
+useEffect(() => {
+  const checkTeamRoute = () => {
+    const hash = window.location.hash;
+    const path = window.location.pathname;
+    
+    console.log('🔍 Checking route - Path:', path, 'Hash:', hash); // Debug log
+    
+    // Check voor team routes: /team/abc123 of #/team/abc123
+    const teamMatch = path.match(/^\/team\/([a-zA-Z0-9]{8})$/) || 
+                     hash.match(/^#\/team\/([a-zA-Z0-9]{8})$/);
+    
+    if (teamMatch) {
+      console.log('✅ Team route gevonden:', teamMatch[1]); // Debug log
+      setTeamToken(teamMatch[1]);
+      return;
+    }
+    
+    // Check voor scoreboard hash
+    if (hash === '#scoreboard') {
+      console.log('✅ Scoreboard route gevonden'); // Debug log
+      setCurrentPage('scoreboard');
+      return;
+    }
+    
+    // Reset team token als we niet op een team pagina zijn
+    if (teamToken) {
+      console.log('🔄 Resetting team token'); // Debug log
+      setTeamToken(null);
+    }
+    
+    // Check of eerder geauthenticeerd
+    const wasAuthenticated = localStorage.getItem('c88-admin-auth');
+    if (wasAuthenticated === 'true') {
+      console.log('✅ Was authenticated, going to admin'); // Debug log
+      setIsAuthenticated(true);
+      setCurrentPage('admin');
+    } else {
+      console.log('🔐 Not authenticated, going to login'); // Debug log
+      setCurrentPage('login');
+    }
+  };
+
+  checkTeamRoute();
+  
+  // Luister naar route changes
+  const handlePopState = () => {
+    console.log('🔄 PopState event triggered'); // Debug log
     checkTeamRoute();
-    
-    // Listen for hash changes
-    const handlePopState = () => checkTeamRoute();
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('hashchange', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('hashchange', handlePopState);
-    };
-  }, []);
+  };
+  
+  const handleHashChange = () => {
+    console.log('🔄 HashChange event triggered'); // Debug log
+    checkTeamRoute();
+  };
+  
+  window.addEventListener('popstate', handlePopState);
+  window.addEventListener('hashchange', handleHashChange);
+  
+  return () => {
+    window.removeEventListener('popstate', handlePopState);
+    window.removeEventListener('hashchange', handleHashChange);
+  };
+}, []); // Lege dependency array is belangrijk!
 
+// Voeg ook deze debug functie toe voor in TeamManagement.tsx (generateTeamURL functie):
+const generateTeamURL = (token: string) => {
+  // Voor Netlify/Amplify gebruiken we hash routing voor teams
+  const url = `${window.location.origin}/#/team/${token}`;
+  console.log('🔗 Generated team URL:', url); // Debug log
+  return url;
+};
   const hashPassword = async (pwd: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(pwd + 'c88-salt');
