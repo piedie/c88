@@ -106,155 +106,176 @@ const JuryReviewInterface = () => {
     }
   };
 
-  // NIEUWE VERBETERDE HANDLE REVIEW FUNCTIE MET SYNCHRONISATIE
-  const handleReview = async (submissionId: string, status: 'approved' | 'rejected', points?: number, notes?: string) => {
-    try {
-      const submission = submissions.find(s => s.id === submissionId);
-      if (!submission) return;
+// VERVANG de handleReview functie in JuryReviewInterface.tsx met deze gefixte versie:
 
-      // Bereken punten
-      let finalPoints = 0;
-      if (status === 'approved') {
-        if (customPoints !== null) {
-          finalPoints = customPoints;
-        } else {
-          finalPoints = submission.assignment_points_base || 1;
-          if (config?.double_points_active) {
-            finalPoints *= 2;
-          }
-        }
-      }
+const handleReview = async (submissionId: string, status: 'approved' | 'rejected', points?: number, notes?: string) => {
+  try {
+    const submission = submissions.find(s => s.id === submissionId);
+    if (!submission) return;
 
-      // Update submission
-      const { error: updateError } = await supabase
-        .from('submissions')
-        .update({
-          status,
-          points_awarded: finalPoints,
-          jury_notes: notes || '',
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', submissionId);
-
-      if (updateError) {
-        console.error('Error updating submission:', updateError);
-        alert('Fout bij opslaan van beoordeling');
-        return;
-      }
-
-      // NIEUWE LOGICA: Synchroniseer met scores tabel
-      if (status === 'approved') {
-        // Voeg score toe aan scores tabel (dit is wat de jury pagina gebruikt)
-        const { error: scoreError } = await supabase
-          .from('scores')
-          .upsert({
-            team_id: submission.team_id,
-            assignment_id: parseInt(submission.assignment_id), // Zorg dat dit een number is
-            points: finalPoints,
-            game_session_id: config?.game_session_id,
-            created_via: 'review' // Markering dat dit via review kwam
-          }, {
-            onConflict: 'team_id,assignment_id,game_session_id'
-          });
-
-        if (scoreError) {
-          console.error('Error creating score:', scoreError);
-          // Probeer alsnog met string assignment_id als number niet werkt
-          const { error: scoreError2 } = await supabase
-            .from('scores')
-            .upsert({
-              team_id: submission.team_id,
-              assignment_id: submission.assignment_id,
-              points: finalPoints,
-              game_session_id: config?.game_session_id,
-              created_via: 'review'
-            }, {
-              onConflict: 'team_id,assignment_id,game_session_id'
-            });
-          
-          if (scoreError2) {
-            console.error('Error creating score (attempt 2):', scoreError2);
-            alert('Waarschuwing: Punten opgeslagen in review maar niet gesynchroniseerd met jury pagina. Check de database.');
-          }
-        }
+    // Bereken punten
+    let finalPoints = 0;
+    if (status === 'approved') {
+      if (customPoints !== null) {
+        finalPoints = customPoints;
       } else {
-        // Als afgekeurd, verwijder score uit scores tabel
-        await supabase
-          .from('scores')
-          .delete()
-          .eq('team_id', submission.team_id)
-          .eq('assignment_id', submission.assignment_id)
-          .eq('game_session_id', config?.game_session_id);
+        finalPoints = submission.assignment_points_base || 1;
+        if (config?.double_points_active) {
+          finalPoints *= 2;
+        }
       }
-
-      // Update local state
-      setSubmissions(prev => prev.map(s => 
-        s.id === submissionId 
-          ? { ...s, status, points_awarded: finalPoints, jury_notes: notes || '', reviewed_at: new Date().toISOString() }
-          : s
-      ));
-
-      // Reset en sluit modal
-      setReviewModal(false);
-      setSelectedSubmission(null);
-      setJuryNotes('');
-      setCustomPoints(null);
-
-      alert(`✅ ${status === 'approved' ? 'Goedgekeurd' : 'Afgekeurd'} en gesynchroniseerd met jury pagina!`);
-
-    } catch (error) {
-      console.error('Error in handleReview:', error);
-      alert('Er ging iets mis bij het beoordelen');
     }
-  };
 
-  // NIEUWE SYNCHRONISATIE FUNCTIE
-  const synchronizeAllApprovedSubmissions = async () => {
-    if (!confirm('Wil je alle goedgekeurde submissions synchroniseren met de jury pagina? Dit kan even duren.')) {
+    // Update submission
+    const { error: updateError } = await supabase
+      .from('submissions')
+      .update({
+        status,
+        points_awarded: finalPoints,
+        jury_notes: notes || '',
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', submissionId);
+
+    if (updateError) {
+      console.error('Error updating submission:', updateError);
+      alert('Fout bij opslaan van beoordeling');
       return;
     }
 
-    try {
-      setSyncing(true);
-      const approvedSubmissions = submissions.filter(s => s.status === 'approved');
-      let syncedCount = 0;
+    // GEFIXTE LOGICA: Gebruik assignment NUMBER i.p.v. UUID
+    if (status === 'approved') {
+      console.log('🔄 Synchronizing with scores table...');
+      console.log('Assignment UUID:', submission.assignment_id);
+      console.log('Assignment Number:', submission.assignment_number);
       
-      for (const submission of approvedSubmissions) {
-        // Check of er al een score bestaat
-        const { data: existingScore } = await supabase
-          .from('scores')
-          .select('id')
-          .eq('team_id', submission.team_id)
-          .eq('assignment_id', submission.assignment_id)
-          .eq('game_session_id', config?.game_session_id)
-          .single();
+      // Gebruik assignment_number (dit is wat scores tabel verwacht)
+      const scoreData = {
+        team_id: submission.team_id,
+        assignment_id: submission.assignment_number, // Gebruik NUMBER i.p.v. UUID!
+        points: finalPoints,
+        game_session_id: config?.game_session_id,
+        created_via: 'review'
+      };
 
-        if (!existingScore) {
-          // Voeg ontbrekende score toe
-          const { error } = await supabase
-            .from('scores')
-            .insert({
-              team_id: submission.team_id,
-              assignment_id: submission.assignment_id,
-              points: submission.points_awarded,
-              game_session_id: config?.game_session_id,
-              created_via: 'sync'
-            });
-          
-          if (!error) {
-            syncedCount++;
-          }
-        }
+      console.log('📊 Score data to insert:', scoreData);
+
+      const { error: scoreError } = await supabase
+        .from('scores')
+        .upsert(scoreData, {
+          onConflict: 'team_id,assignment_id,game_session_id'
+        });
+
+      if (scoreError) {
+        console.error('❌ Score sync failed:', scoreError);
+        alert('⚠️ Submission goedgekeurd, maar synchronisatie met jury pagina mislukt. Check de console voor details.');
+      } else {
+        console.log('✅ Score synchronized successfully');
       }
+    } else {
+      // Als afgekeurd, verwijder score uit scores tabel
+      console.log('🗑️ Removing score from scores table...');
       
-      alert(`✅ ${syncedCount} submissions gesynchroniseerd met jury pagina!`);
-    } catch (error) {
-      console.error('Sync error:', error);
-      alert('❌ Fout bij synchroniseren');
-    } finally {
-      setSyncing(false);
+      const { error: deleteError } = await supabase
+        .from('scores')
+        .delete()
+        .eq('team_id', submission.team_id)
+        .eq('assignment_id', submission.assignment_number) // Gebruik NUMBER
+        .eq('game_session_id', config?.game_session_id);
+
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+      }
     }
-  };
+
+    // Update local state
+    setSubmissions(prev => prev.map(s => 
+      s.id === submissionId 
+        ? { ...s, status, points_awarded: finalPoints, jury_notes: notes || '', reviewed_at: new Date().toISOString() }
+        : s
+    ));
+
+    // Reset en sluit modal
+    setReviewModal(false);
+    setSelectedSubmission(null);
+    setJuryNotes('');
+    setCustomPoints(null);
+
+    alert(`✅ ${status === 'approved' ? 'Goedgekeurd' : 'Afgekeurd'} en gesynchroniseerd!`);
+
+  } catch (error) {
+    console.error('💥 Error in handleReview:', error);
+    alert('Er ging iets mis bij het beoordelen');
+  }
+};
+
+
+// VERVANG ook de synchronizeAllApprovedSubmissions functie:
+
+const synchronizeAllApprovedSubmissions = async () => {
+  if (!confirm('Wil je alle goedgekeurde submissions synchroniseren met de jury pagina? Dit kan even duren.')) {
+    return;
+  }
+
+  try {
+    setSyncing(true);
+    const approvedSubmissions = submissions.filter(s => s.status === 'approved');
+    let syncedCount = 0;
+    let errorCount = 0;
+    
+    console.log(`🔄 Starting sync of ${approvedSubmissions.length} approved submissions...`);
+    
+    for (const submission of approvedSubmissions) {
+      console.log(`📊 Processing submission ${submission.id} for assignment #${submission.assignment_number}...`);
+      
+      // Check of er al een score bestaat (gebruik assignment NUMBER)
+      const { data: existingScore } = await supabase
+        .from('scores')
+        .select('id')
+        .eq('team_id', submission.team_id)
+        .eq('assignment_id', submission.assignment_number) // Gebruik NUMBER
+        .eq('game_session_id', config?.game_session_id)
+        .single();
+
+      if (!existingScore) {
+        // Voeg ontbrekende score toe
+        const scoreData = {
+          team_id: submission.team_id,
+          assignment_id: submission.assignment_number, // Gebruik NUMBER
+          points: submission.points_awarded,
+          game_session_id: config?.game_session_id,
+          created_via: 'sync'
+        };
+
+        const { error: insertError } = await supabase
+          .from('scores')
+          .insert([scoreData]);
+        
+        if (insertError) {
+          console.error(`❌ Insert failed for assignment #${submission.assignment_number}:`, insertError);
+          errorCount++;
+        } else {
+          console.log(`✅ Successfully synced assignment #${submission.assignment_number}`);
+          syncedCount++;
+        }
+      } else {
+        console.log(`⏭️ Score already exists for assignment #${submission.assignment_number}`);
+      }
+    }
+    
+    if (errorCount > 0) {
+      alert(`⚠️ ${syncedCount} submissions gesynchroniseerd, ${errorCount} fouten. Check de console voor details.`);
+    } else {
+      alert(`✅ ${syncedCount} submissions succesvol gesynchroniseerd met jury pagina!`);
+    }
+  } catch (error) {
+    console.error('💥 Sync error:', error);
+    alert('❌ Fout bij synchroniseren');
+  } finally {
+    setSyncing(false);
+  }
+};
+
 
   const openReviewModal = (submission: Submission) => {
     setSelectedSubmission(submission);

@@ -102,25 +102,32 @@ const AdminPage = () => {
     setCompletedAssignments(completed);
   };
 
-  // NIEUWE FUNCTIE: Laad submission statuses voor een team
-  const fetchSubmissionStatuses = async (teamId: string) => {
-    if (!config) return;
-    
-    const { data: submissions } = await supabase
-      .from('submissions')
-      .select('assignment_id, status, points_awarded')
-      .eq('team_id', teamId)
-      .eq('game_session_id', config.game_session_id);
-    
-    const statuses: {[key: string]: SubmissionStatus} = {};
-    submissions?.forEach(sub => {
-      statuses[sub.assignment_id] = {
-        status: sub.status,
-        points_awarded: sub.points_awarded
-      };
-    });
-    setSubmissionStatuses(statuses);
-  };
+ // VERVANG ook de fetchSubmissionStatuses functie:
+
+const fetchSubmissionStatuses = async (teamId: string) => {
+  if (!config) return;
+  
+  // Haal submissions op met assignment numbers
+  const { data: submissions } = await supabase
+    .from('submissions')
+    .select(`
+      status, 
+      points_awarded,
+      assignments!inner(number)
+    `)
+    .eq('team_id', teamId)
+    .eq('game_session_id', config.game_session_id);
+  
+  const statuses: {[key: string]: SubmissionStatus} = {};
+  submissions?.forEach(sub => {
+    const assignmentNumber = (sub.assignments as any).number;
+    statuses[assignmentNumber.toString()] = {
+      status: sub.status,
+      points_awarded: sub.points_awarded
+    };
+  });
+  setSubmissionStatuses(statuses);
+};
 
   const updateTimer = async () => {
     // Fetch latest config to get current timer state
@@ -150,85 +157,90 @@ const AdminPage = () => {
     fetchSubmissionStatuses(team.id); // Laad ook submission statuses
   };
 
-  // VERBETERDE HANDLE ASSIGNMENT CLICK MET REVIEW INTEGRATIE
-  const handleAssignmentClick = async (assignmentId: number) => {
-    if (!selectedTeam || !config) return;
-    
-    // Check of er al een submission bestaat voor deze opdracht
-    const { data: existingSubmission } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('team_id', selectedTeam.id)
-      .eq('assignment_id', assignmentId.toString())
-      .eq('game_session_id', config.game_session_id)
-      .single();
+// VERVANG de handleAssignmentClick functie in AdminPage.tsx met deze gefixte versie:
 
-    if (existingSubmission) {
-      // Er bestaat al een submission
-      if (existingSubmission.status === 'approved') {
-        alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId} via de review pagina. Gebruik de review pagina om punten aan te passen.`);
-        return;
-      } else if (existingSubmission.status === 'pending') {
-        if (confirm(`Team "${selectedTeam.name}" heeft een submission ingediend voor opdracht ${assignmentId} die nog wacht op beoordeling.\n\nWil je handmatig punten toekennen? (Dit markeert de submission als "handmatig goedgekeurd")`)) {
-          // Markeer submission als handmatig goedgekeurd
-          await supabase
-            .from('submissions')
-            .update({
-              status: 'approved',
-              points_awarded: config.double_points_active ? 2 : 1,
-              jury_notes: 'Handmatig goedgekeurd via jury pagina',
-              reviewed_at: new Date().toISOString()
-            })
-            .eq('id', existingSubmission.id);
-        } else {
-          return; // Gebruiker heeft geannuleerd
-        }
-      } else if (existingSubmission.status === 'rejected') {
-        if (confirm(`Team "${selectedTeam.name}" heeft een afgewezen submission voor opdracht ${assignmentId}.\n\nWil je alsnog handmatig punten toekennen?`)) {
-          // Update de afgewezen submission
-          await supabase
-            .from('submissions')
-            .update({
-              status: 'approved',
-              points_awarded: config.double_points_active ? 2 : 1,
-              jury_notes: 'Handmatig goedgekeurd via jury pagina na afwijzing',
-              reviewed_at: new Date().toISOString()
-            })
-            .eq('id', existingSubmission.id);
-        } else {
-          return;
-        }
-      }
-    }
-    
-    // Ga door met normale punten toekenning
-    const finalPoints = config.double_points_active ? 2 : 1;
-    
-    // Voeg score toe aan scores tabel
-    const { error: scoreError } = await supabase.from('scores').insert([{
-      team_id: selectedTeam.id,
-      assignment_id: assignmentId,
-      points: finalPoints,
-      game_session_id: config.game_session_id,
-      created_via: 'jury' // Markering dat dit via jury pagina kwam
-    }]);
+const handleAssignmentClick = async (assignmentId: number) => {
+  if (!selectedTeam || !config) return;
+  
+  // Check of er al een submission bestaat voor deze opdracht
+  // We moeten koppelen via assignments tabel omdat submission gebruikt UUID en scores gebruikt NUMBER
+  const { data: existingSubmission } = await supabase
+    .from('submissions')
+    .select(`
+      *,
+      assignments!inner(number)
+    `)
+    .eq('team_id', selectedTeam.id)
+    .eq('assignments.number', assignmentId) // Koppel via assignment NUMBER
+    .eq('game_session_id', config.game_session_id)
+    .single();
 
-    if (scoreError) {
-      // Check of het een duplicate key error is
-      if (scoreError.message.includes('duplicate') || scoreError.code === '23505') {
-        alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId}. Verwijder eerst de bestaande punten in het logboek.`);
-      } else {
-        console.error('Score insert error:', scoreError);
-        alert('❌ Fout bij toekennen van punten');
-      }
+  if (existingSubmission) {
+    // Er bestaat al een submission
+    if (existingSubmission.status === 'approved') {
+      alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId} via de review pagina. Gebruik de review pagina om punten aan te passen.`);
       return;
+    } else if (existingSubmission.status === 'pending') {
+      if (confirm(`Team "${selectedTeam.name}" heeft een submission ingediend voor opdracht ${assignmentId} die nog wacht op beoordeling.\n\nWil je handmatig punten toekennen? (Dit markeert de submission als "handmatig goedgekeurd")`)) {
+        // Markeer submission als handmatig goedgekeurd
+        await supabase
+          .from('submissions')
+          .update({
+            status: 'approved',
+            points_awarded: config.double_points_active ? 2 : 1,
+            jury_notes: 'Handmatig goedgekeurd via jury pagina',
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmission.id);
+      } else {
+        return; // Gebruiker heeft geannuleerd
+      }
+    } else if (existingSubmission.status === 'rejected') {
+      if (confirm(`Team "${selectedTeam.name}" heeft een afgewezen submission voor opdracht ${assignmentId}.\n\nWil je alsnog handmatig punten toekennen?`)) {
+        // Update de afgewezen submission
+        await supabase
+          .from('submissions')
+          .update({
+            status: 'approved',
+            points_awarded: config.double_points_active ? 2 : 1,
+            jury_notes: 'Handmatig goedgekeurd via jury pagina na afwijzing',
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmission.id);
+      } else {
+        return;
+      }
     }
-    
-    setSelectedTeam(null);
-    setCompletedAssignments([]);
-    setSubmissionStatuses({});
-    fetchData(); // Refresh scores
-  };
+  }
+  
+  // Ga door met normale punten toekenning
+  const finalPoints = config.double_points_active ? 2 : 1;
+  
+  // Voeg score toe aan scores tabel (assignment_id is hier gewoon het NUMBER)
+  const { error: scoreError } = await supabase.from('scores').insert([{
+    team_id: selectedTeam.id,
+    assignment_id: assignmentId, // Dit is al een NUMBER
+    points: finalPoints,
+    game_session_id: config.game_session_id,
+    created_via: 'jury'
+  }]);
+
+  if (scoreError) {
+    // Check of het een duplicate key error is
+    if (scoreError.message.includes('duplicate') || scoreError.code === '23505') {
+      alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId}. Verwijder eerst de bestaande punten in het logboek.`);
+    } else {
+      console.error('Score insert error:', scoreError);
+      alert('❌ Fout bij toekennen van punten');
+    }
+    return;
+  }
+  
+  setSelectedTeam(null);
+  setCompletedAssignments([]);
+  setSubmissionStatuses({});
+  fetchData(); // Refresh scores
+};
 
   const toggleDoublePoints = async () => {
     if (!config) return;
