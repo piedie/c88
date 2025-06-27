@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { AssignmentStatusManager } from '../utils/assignmentStatus';
 
 interface Team {
   id: string;
@@ -52,6 +53,7 @@ const TeamInterface = ({ token }: { token: string }) => {
   const [team, setTeam] = useState<Team | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [assignmentStatuses, setAssignmentStatuses] = useState<{[key: number]: any}>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
@@ -122,6 +124,20 @@ const TeamInterface = ({ token }: { token: string }) => {
       } else {
         setSubmissions(submissionsData || []);
       }
+
+      // NIEUW: Load assignment statuses via unified system
+      console.log('📋 Loading assignment statuses...');
+      const statuses = await AssignmentStatusManager.getTeamStatuses(
+        teamData.id, 
+        teamData.game_session_id
+      );
+      
+      const statusMap: {[key: number]: any} = {};
+      statuses.forEach(status => {
+        statusMap[status.assignment_number] = status;
+      });
+      setAssignmentStatuses(statusMap);
+      console.log(`✅ Loaded ${statuses.length} assignment statuses`);
 
     } catch (err) {
       console.error('💥 Error loading team data:', err);
@@ -225,169 +241,33 @@ const TeamInterface = ({ token }: { token: string }) => {
   };
 
   const compressFile = async (file: File): Promise<File> => {
-  setCompressionProgress(10);
-  setOriginalSize(file.size);
-  
-  let compressedFile = file;
-  
-  try {
-    if (file.type.startsWith('image/')) {
-      setCompressionProgress(30);
-      compressedFile = await compressImage(file);
-      setCompressionProgress(80);
-    } else if (file.type.startsWith('video/')) {
-      setCompressionProgress(30);
-      
-      // Agressievere video compressie via Canvas + WebRTC
-      if (file.size > 10 * 1024 * 1024) { // >10MB wordt gecomprimeerd
-        try {
-          compressedFile = await compressVideoAdvanced(file);
-          setCompressionProgress(70);
-        } catch (videoError) {
-          console.warn('Video compressie mislukt, probeer thumbnail:', videoError);
-          // Fallback naar thumbnail als video compressie mislukt
-          compressedFile = await compressVideo(file);
-        }
+    setCompressionProgress(10);
+    setOriginalSize(file.size);
+    
+    let compressedFile = file;
+    
+    try {
+      if (file.type.startsWith('image/')) {
+        setCompressionProgress(30);
+        compressedFile = await compressImage(file);
+        setCompressionProgress(80);
+      } else if (file.type.startsWith('video/')) {
+        setCompressionProgress(30);
+        compressedFile = await compressVideo(file);
+        setCompressionProgress(80);
       }
-      setCompressionProgress(80);
+      // Audio blijft ongewijzigd
+      
+      setCompressionProgress(100);
+      setCompressedSize(compressedFile.size);
+      
+      return compressedFile;
+    } catch (error) {
+      console.error('Compressie fout:', error);
+      setCompressionProgress(100);
+      return file;
     }
-    // Audio blijft ongewijzigd
-    
-    setCompressionProgress(100);
-    setCompressedSize(compressedFile.size);
-    
-    return compressedFile;
-  } catch (error) {
-    console.error('Compressie fout:', error);
-    setCompressionProgress(100);
-    return file;
-  }
-};
-
-// VOEG deze nieuwe functie toe aan TeamInterface.tsx:
-
-const compressVideoAdvanced = async (file: File): Promise<File> => {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d')!;
-    
-    video.onloadedmetadata = () => {
-      const { videoWidth, videoHeight, duration } = video;
-      
-      // Bepaal nieuwe dimensies (agressievere verkleining voor grote bestanden)
-      let targetWidth = videoWidth;
-      let targetHeight = videoHeight;
-      
-      if (file.size > 50 * 1024 * 1024) { // >50MB: zeer agressief
-        const ratio = Math.min(720 / videoWidth, 480 / videoHeight);
-        targetWidth = Math.floor(videoWidth * ratio);
-        targetHeight = Math.floor(videoHeight * ratio);
-      } else if (file.size > 20 * 1024 * 1024) { // >20MB: matig agressief  
-        const ratio = Math.min(1280 / videoWidth, 720 / videoHeight);
-        targetWidth = Math.floor(videoWidth * ratio);
-        targetHeight = Math.floor(videoHeight * ratio);
-      }
-      
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      
-      // Voor zeer lange video's (>30 sec), maak een gecomprimeerde versie
-      if (duration > 30) {
-        // Maak een korte preview (eerste 30 seconden als frames)
-        createVideoPreview(video, canvas, ctx, resolve, file.name);
-      } else {
-        // Voor korte video's, maak een thumbnail
-        video.currentTime = duration / 2; // Midden van video
-        video.onseeked = () => {
-          ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-          
-          // Zeer lage kwaliteit voor grote bestanden
-          const quality = file.size > 50 * 1024 * 1024 ? 0.3 : 0.6;
-          
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              reject(new Error('Video compressie mislukt'));
-            }
-          }, 'image/jpeg', quality);
-        };
-      }
-    };
-    
-    video.onerror = () => reject(new Error('Video laden mislukt'));
-    video.src = URL.createObjectURL(file);
-  });
-};
-
-// VOEG deze helper functie toe:
-
-const createVideoPreview = (video: HTMLVideoElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resolve: (file: File) => void, originalName: string) => {
-  const frames: string[] = [];
-  const frameCount = 10; // 10 frames voor preview
-  const duration = Math.min(video.duration, 30); // Max 30 seconden
-  let currentFrame = 0;
-  
-  const captureFrame = () => {
-    if (currentFrame >= frameCount) {
-      // Alle frames verzameld, maak een collage
-      createFrameCollage(frames, canvas, ctx, resolve, originalName);
-      return;
-    }
-    
-    video.currentTime = (currentFrame / frameCount) * duration;
-    video.onseeked = () => {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      frames.push(canvas.toDataURL('image/jpeg', 0.7));
-      currentFrame++;
-      captureFrame();
-    };
   };
-  
-  captureFrame();
-};
-
-const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resolve: (file: File) => void, originalName: string) => {
-  // Maak een collage van alle frames
-  const cols = 5;
-  const rows = 2;
-  const frameWidth = canvas.width / cols;
-  const frameHeight = canvas.height / rows;
-  
-  canvas.width = frameWidth * cols;
-  canvas.height = frameHeight * rows;
-  
-  let loadedFrames = 0;
-  
-  frames.forEach((frameData, index) => {
-    const img = new Image();
-    img.onload = () => {
-      const x = (index % cols) * frameWidth;
-      const y = Math.floor(index / cols) * frameHeight;
-      ctx.drawImage(img, x, y, frameWidth, frameHeight);
-      
-      loadedFrames++;
-      if (loadedFrames === frames.length) {
-        // Alle frames getekend, maak het finale bestand
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const previewFile = new File([blob], originalName.replace(/\.[^/.]+$/, '_preview.jpg'), {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            resolve(previewFile);
-          }
-        }, 'image/jpeg', 0.8);
-      }
-    };
-    img.src = frameData;
-  });
-};
 
   // UPLOAD FUNCTIE MET RETRY EN PROGRESS
   const uploadWithRetry = async (file: File, fileName: string, maxRetries = 3): Promise<any> => {
@@ -442,12 +322,12 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
       console.log('🚀 Upload gestart voor:', file.name);
 
       // Stap 1: Valideer bestand
-      const maxSize = 150 * 1024 * 1024; // 50MB max
+      const maxSize = 150 * 1024 * 1024; // 150MB max
       if (file.size > maxSize) {
-  const fileSizeMB = Math.round(file.size / (1024 * 1024));
-  const maxSizeMB = Math.round(maxSize / (1024 * 1024));
-  throw new Error(`Bestand te groot (${fileSizeMB}MB). Maximum ${maxSizeMB}MB toegestaan. Probeer een korter filmpje of lagere kwaliteit.`);
-}
+        const fileSizeMB = Math.round(file.size / (1024 * 1024));
+        const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+        throw new Error(`Bestand te groot (${fileSizeMB}MB). Maximum ${maxSizeMB}MB toegestaan. Probeer een korter filmpje of lagere kwaliteit.`);
+      }
 
       const isValidType = (
         (selectedAssignment.requires_photo && file.type.startsWith('image/')) ||
@@ -554,11 +434,34 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
 
       console.log('✅ Upload volledig succesvol!');
 
+      // NIEUW: Update unified status na succesvolle upload
+      console.log('📊 Updating assignment status...');
+      const statusSuccess = await AssignmentStatusManager.submitAssignment(
+        submission.id,
+        team.id,
+        selectedAssignment.number,
+        team.game_session_id
+      );
+
+      if (!statusSuccess) {
+        console.warn('⚠️ Upload successful but status update failed');
+      }
+
       // Update local state
       setSubmissions(prev => {
         const filtered = prev.filter(s => s.assignment_id !== selectedAssignment.id);
         return [...filtered, submission];
       });
+
+      // NIEUW: Update local assignment statuses
+      setAssignmentStatuses(prev => ({
+        ...prev,
+        [selectedAssignment.number]: {
+          status: 'submitted',
+          points_awarded: 0,
+          completion_method: 'review'
+        }
+      }));
       
       // Reset en sluit modal
       resetUploadState();
@@ -606,16 +509,18 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
     return submissions.find(s => s.assignment_id === assignmentId);
   };
 
+  // VERVANGEN: gebruik unified system voor status
   const getAssignmentStatus = (assignment: Assignment) => {
-    const submission = getSubmissionForAssignment(assignment.id);
-    if (!submission) return 'not_started';
-    return submission.status;
+    const status = assignmentStatuses[assignment.number];
+    if (!status) return 'not_started';
+    return status.status;
   };
 
   const getStatusEmoji = (status: string) => {
     switch (status) {
       case 'approved': return '✅';
-      case 'pending': return '⏳';
+      case 'completed_jury': return '🏆';
+      case 'submitted': return '⏳';
       case 'rejected': return '❌';
       case 'needs_review': return '🔍';
       default: return '📋';
@@ -624,8 +529,9 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-green-100 border-green-300 text-green-800';
-      case 'pending': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+      case 'approved': 
+      case 'completed_jury': return 'bg-green-100 border-green-300 text-green-800';
+      case 'submitted': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
       case 'rejected': return 'bg-red-100 border-red-300 text-red-800';
       case 'needs_review': return 'bg-blue-100 border-blue-300 text-blue-800';
       default: return 'bg-gray-100 border-gray-300 text-gray-800';
@@ -643,8 +549,8 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
   };
 
   const handleAssignmentClick = (assignment: Assignment) => {
-    const submission = getSubmissionForAssignment(assignment.id);
-    if (submission && submission.status === 'approved') {
+    const status = getAssignmentStatus(assignment);
+    if (status === 'approved' || status === 'completed_jury') {
       // Already completed, just show details
       setSelectedAssignment(assignment);
       return;
@@ -677,11 +583,18 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const totalPoints = submissions
-    .filter(s => s.status === 'approved')
-    .reduce((sum, s) => sum + s.points_awarded, 0);
+  // VERVANGEN: gebruik unified system voor punten berekening
+  const totalPoints = assignmentStatuses 
+    ? Object.values(assignmentStatuses)
+        .filter((status: any) => status.status === 'approved' || status.status === 'completed_jury')
+        .reduce((sum: number, status: any) => sum + status.points_awarded, 0)
+    : 0;
 
-  const completedCount = submissions.filter(s => s.status === 'approved').length;
+  const completedCount = assignmentStatuses
+    ? Object.values(assignmentStatuses)
+        .filter((status: any) => status.status === 'approved' || status.status === 'completed_jury')
+        .length
+    : 0;
 
   if (loading) {
     return (
@@ -755,8 +668,9 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
           >
             <option value="all">Alle statussen</option>
             <option value="not_started">Nog te doen</option>
-            <option value="pending">Wacht op beoordeling</option>
+            <option value="submitted">Wacht op beoordeling</option>
             <option value="approved">Goedgekeurd</option>
+            <option value="completed_jury">Voltooid via jury</option>
             <option value="rejected">Afgewezen</option>
           </select>
         </div>
@@ -766,7 +680,7 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
       <div className="assignments-grid">
         {filteredAssignments.map(assignment => {
           const status = getAssignmentStatus(assignment);
-          const submission = getSubmissionForAssignment(assignment.id);
+          const assignmentStatus = assignmentStatuses[assignment.number];
           
           return (
             <div 
@@ -794,9 +708,9 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
                   <span className="points">{assignment.points_base} pt</span>
                 </div>
                 
-                {submission && submission.status === 'approved' && (
+                {assignmentStatus && (status === 'approved' || status === 'completed_jury') && (
                   <div className="points-awarded">
-                    +{submission.points_awarded} punten
+                    +{assignmentStatus.points_awarded} punten
                   </div>
                 )}
               </div>
@@ -877,70 +791,4 @@ const createFrameCollage = (frames: string[], canvas: HTMLCanvasElement, ctx: Ca
                       backgroundColor: '#f0f9ff', 
                       borderRadius: '0.5rem',
                       fontSize: '0.875rem'
-                    }}>
-                      <div>📁 Origineel: {formatFileSize(originalSize)}</div>
-                      <div>🗜️ Gecomprimeerd: {formatFileSize(compressedSize)}</div>
-                      {compressedSize < originalSize && (
-                        <div style={{ color: '#059669', fontWeight: '600' }}>
-                          💾 {Math.round((1 - compressedSize / originalSize) * 100)}% kleiner!
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <div className="upload-area">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={`${selectedAssignment.requires_photo ? 'image/*' : ''}${selectedAssignment.requires_video ? ',video/*' : ''}${selectedAssignment.requires_audio ? ',audio/*' : ''}`}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file);
-                  }}
-                  style={{ display: 'none' }}
-                />
-                
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="upload-btn"
-                >
-                  {uploading ? '⏳ Bezig met uploaden...' : '📁 Kies bestand'}
-                </button>
-                
-                <div className="requirements">
-                  <p>Vereist voor deze opdracht:</p>
-                  {selectedAssignment.requires_photo && <span>📸 Foto</span>}
-                  {selectedAssignment.requires_video && <span>🎥 Video</span>}
-                  {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
-                </div>
-
-                {/* Tips */}
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '0.75rem', 
-                  backgroundColor: '#fef3cd', 
-                  borderRadius: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#92400e'
-                }}>
-                  <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>💡 Tips:</div>
-                  <div>• Foto's worden automatisch verkleind voor snellere upload</div>
-                  <div>• Video's korter dan 30 sec werken het beste</div>
-                  <div>• Maximum bestandsgrootte: 50MB</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Hidden Canvas voor Image Compressie */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-    </div>
-  );
-};
-
-export default TeamInterface;
+                    }}></div>
