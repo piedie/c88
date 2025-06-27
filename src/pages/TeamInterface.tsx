@@ -791,4 +791,70 @@ const TeamInterface = ({ token }: { token: string }) => {
                       backgroundColor: '#f0f9ff', 
                       borderRadius: '0.5rem',
                       fontSize: '0.875rem'
-                    }}></div>
+                    }}>
+                      <div>📁 Origineel: {formatFileSize(originalSize)}</div>
+                      <div>🗜️ Gecomprimeerd: {formatFileSize(compressedSize)}</div>
+                      {compressedSize < originalSize && (
+                        <div style={{ color: '#059669', fontWeight: '600' }}>
+                          💾 {Math.round((1 - compressedSize / originalSize) * 100)}% kleiner!
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="upload-area">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={`${selectedAssignment.requires_photo ? 'image/*' : ''}${selectedAssignment.requires_video ? ',video/*' : ''}${selectedAssignment.requires_audio ? ',audio/*' : ''}`}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                  }}
+                  style={{ display: 'none' }}
+                />
+                
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="upload-btn"
+                >
+                  {uploading ? '⏳ Bezig met uploaden...' : '📁 Kies bestand'}
+                </button>
+                
+                <div className="requirements">
+                  <p>Vereist voor deze opdracht:</p>
+                  {selectedAssignment.requires_photo && <span>📸 Foto</span>}
+                  {selectedAssignment.requires_video && <span>🎥 Video</span>}
+                  {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
+                </div>
+
+                {/* Tips */}
+                <div style={{ 
+                  marginTop: '1rem', 
+                  padding: '0.75rem', 
+                  backgroundColor: '#fef3cd', 
+                  borderRadius: '0.5rem',
+                  fontSize: '0.75rem',
+                  color: '#92400e'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>💡 Tips:</div>
+                  <div>• Foto's worden automatisch verkleind voor snellere upload</div>
+                  <div>• Video's korter dan 30 sec werken het beste</div>
+                  <div>• Maximum bestandsgrootte: 150MB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Canvas voor Image Compressie */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+    </div>
+  );
+};
+
+export default TeamInterface;
