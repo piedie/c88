@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { AssignmentStatusManager } from '../utils/assignmentStatus';
+import TeamMessages from './TeamMessages';
 
 interface Team {
   id: string;
@@ -637,7 +638,32 @@ const getStatusColor = (status: string) => {
             style={{ width: `${(completedCount / 88) * 100}%` }}
           ></div>
         </div>
+      </div>return (
+  <div className="team-interface">
+    {/* Header */}
+    <div className="team-header">
+      <div className="team-info">
+        <h1>🎲 {team?.name}</h1>
+        <div className="team-meta">
+          <span className="team-category">{team?.category}</span>
+          <span className="team-score">{totalPoints} punten</span>
+          <span className="team-progress">{completedCount}/88 opdrachten</span>
+        </div>
       </div>
+      <div className="team-progress-bar">
+        <div 
+          className="progress-fill" 
+          style={{ width: `${(completedCount / 88) * 100}%` }}
+        ></div>
+      </div>
+    </div>
+
+    {/* NIEUW: Team Messages Component */}
+    {team && <TeamMessages team={team} />}
+
+    {/* Filters */}
+    <div className="team-filters">
+      {/* ... rest van je bestaande code ... */}
 
       {/* Filters */}
       <div className="team-filters">
