@@ -228,7 +228,6 @@ const handleAssignmentClick = async (assignmentId: number) => {
       setCompletedAssignments([]);
       setSubmissionStatuses({});
       fetchData(); // Refresh scores
-      alert(`✅ ${finalPoints} punten toegekend aan ${selectedTeam.name} voor opdracht ${assignmentId}`);
     } else {
       console.error('❌ Failed to assign points via unified system');
       alert('❌ Fout bij toekennen van punten. Check de console voor details.');
@@ -373,7 +372,6 @@ const handleCreativityPoints = async () => {
       setCreativityTeam(null);
       setCreativityAssignment('');
       fetchData();
-      alert(`🎨 5 creativiteitspunten toegekend aan ${creativityTeam.name} voor opdracht ${assignmentId}!`);
     } else {
       console.error('❌ Failed to assign creativity points');
       alert('❌ Fout bij toekennen van creativiteitspunten');
