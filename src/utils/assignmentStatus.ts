@@ -116,104 +116,119 @@ export class AssignmentStatusManager {
     }
   }
 
-  // Complete assignment via jury - FIXED version
-  static async completeViaJury(
-    teamId: string, 
-    assignmentNumber: number, 
-    points: number,
-    gameSessionId: string,
-    method: 'jury' | 'creativity' = 'jury',
-    notes?: string
-  ): Promise<boolean> {
-    try {
-      // First insert into scores table (for existing jury system compatibility)
-      const { data: scoreData, error: scoreError } = await supabase
-        .from('scores')
-        .insert([{
-          team_id: teamId,
-          assignment_id: assignmentNumber,
-          points,
-          game_session_id: gameSessionId,
-          created_via: method
-        }])
-        .select()
-        .single();
-
-      if (scoreError) {
-        console.error('Error creating score:', scoreError);
-        return false;
-      }
-
-      // Then update unified status
-      return await this.updateStatus(
-        teamId,
-        assignmentNumber,
-        'completed_jury',
+// VERVANG de completeViaJury functie:
+static async completeViaJury(
+  teamId: string, 
+  assignmentNumber: number, 
+  points: number,
+  gameSessionId: string,
+  method: 'jury' | 'creativity' = 'jury',
+  notes?: string
+): Promise<boolean> {
+  try {
+    console.log(`🎯 CompleteViaJury: ${teamId}, assignment ${assignmentNumber}, ${points} points`);
+    
+    // UPSERT into scores table (gebruik upsert i.p.v. insert)
+    const { data: scoreData, error: scoreError } = await supabase
+      .from('scores')
+      .upsert({
+        team_id: teamId,
+        assignment_id: assignmentNumber,
         points,
-        method,
-        gameSessionId,
-        {
-          scoreId: scoreData.id,
-          notes,
-          completedBy: 'jury'
-        }
-      );
-    } catch (error) {
-      console.error('Exception in completeViaJury:', error);
+        game_session_id: gameSessionId,
+        created_via: method
+      }, {
+        onConflict: 'team_id,assignment_id,game_session_id'
+      })
+      .select()
+      .single();
+
+    if (scoreError) {
+      console.error('Error creating/updating score:', scoreError);
       return false;
     }
-  }
 
-  // Complete assignment via review approval - FIXED version  
-  static async completeViaReview(
-    submissionId: string,
-    teamId: string,
-    assignmentNumber: number,
-    points: number,
-    gameSessionId: string,
-    notes?: string
-  ): Promise<boolean> {
-    try {
-      // First create score for jury system compatibility
-      const { data: scoreData, error: scoreError } = await supabase
-        .from('scores')
-        .upsert({
-          team_id: teamId,
-          assignment_id: assignmentNumber,
-          points,
-          game_session_id: gameSessionId,
-          created_via: 'review'
-        }, {
-          onConflict: 'team_id,assignment_id,game_session_id'
-        })
-        .select()
-        .single();
+    console.log('✅ Score upserted successfully:', scoreData);
 
-      if (scoreError) {
-        console.error('Error creating/updating score:', scoreError);
-        // Continue anyway, status update is more important
+    // Then update unified status
+    const statusSuccess = await this.updateStatus(
+      teamId,
+      assignmentNumber,
+      'completed_jury',
+      points,
+      method,
+      gameSessionId,
+      {
+        scoreId: scoreData.id,
+        notes,
+        completedBy: 'jury'
       }
+    );
 
-      // Update unified status
-      return await this.updateStatus(
-        teamId,
-        assignmentNumber,
-        'approved',
-        points,
-        'review',
-        gameSessionId,
-        {
-          submissionId,
-          scoreId: scoreData?.id,
-          notes,
-          completedBy: 'review'
-        }
-      );
-    } catch (error) {
-      console.error('Exception in completeViaReview:', error);
-      return false;
-    }
+    return statusSuccess;
+  } catch (error) {
+    console.error('Exception in completeViaJury:', error);
+    return false;
   }
+}
+
+
+ // VERVANG de completeViaReview functie:
+static async completeViaReview(
+  submissionId: string,
+  teamId: string,
+  assignmentNumber: number,
+  points: number,
+  gameSessionId: string,
+  notes?: string
+): Promise<boolean> {
+  try {
+    console.log(`📊 CompleteViaReview: ${teamId}, assignment ${assignmentNumber}, ${points} points`);
+    
+    // UPSERT score for jury system compatibility
+    const { data: scoreData, error: scoreError } = await supabase
+      .from('scores')
+      .upsert({
+        team_id: teamId,
+        assignment_id: assignmentNumber,
+        points,
+        game_session_id: gameSessionId,
+        created_via: 'review'
+      }, {
+        onConflict: 'team_id,assignment_id,game_session_id'
+      })
+      .select()
+      .single();
+
+    if (scoreError) {
+      console.error('Error creating/updating score:', scoreError);
+      // Continue anyway, status update is more important
+    } else {
+      console.log('✅ Score upserted successfully:', scoreData);
+    }
+
+    // Update unified status
+    const statusSuccess = await this.updateStatus(
+      teamId,
+      assignmentNumber,
+      'approved',
+      points,
+      'review',
+      gameSessionId,
+      {
+        submissionId,
+        scoreId: scoreData?.id,
+        notes,
+        completedBy: 'review'
+      }
+    );
+
+    return statusSuccess;
+  } catch (error) {
+    console.error('Exception in completeViaReview:', error);
+    return false;
+  }
+}
 
   // Submit assignment - FIXED version
   static async submitAssignment(
