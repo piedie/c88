@@ -620,25 +620,9 @@ const getStatusColor = (status: string) => {
     );
   }
 
-  return (
-    <div className="team-interface">
-      {/* Header */}
-      <div className="team-header">
-        <div className="team-info">
-          <h1>🎲 {team?.name}</h1>
-          <div className="team-meta">
-            <span className="team-category">{team?.category}</span>
-            <span className="team-score">{totalPoints} punten</span>
-            <span className="team-progress">{completedCount}/88 opdrachten</span>
-          </div>
-        </div>
-        <div className="team-progress-bar">
-          <div 
-            className="progress-fill" 
-            style={{ width: `${(completedCount / 88) * 100}%` }}
-          ></div>
-        </div>
-      </div>return (
+  // VERVANG het laatste gedeelte van TeamInterface.tsx (vanaf de return statement):
+
+return (
   <div className="team-interface">
     {/* Header */}
     <div className="team-header">
@@ -663,226 +647,222 @@ const getStatusColor = (status: string) => {
 
     {/* Filters */}
     <div className="team-filters">
-      {/* ... rest van je bestaande code ... */}
-
-      {/* Filters */}
-      <div className="team-filters">
-        <input
-          type="text"
-          placeholder="🔍 Zoek opdrachten..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+      <input
+        type="text"
+        placeholder="🔍 Zoek opdrachten..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="search-input"
+      />
+      
+      <div className="filter-row">
+        <select 
+          value={categoryFilter} 
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">Alle categorieën</option>
+          <option value="general">General</option>
+          <option value="social">Social</option>
+          <option value="creative">Creative</option>
+          <option value="physical">Physical</option>
+          <option value="challenge">Challenge</option>
+        </select>
         
-        <div className="filter-row">
-          <select 
-            value={categoryFilter} 
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">Alle categorieën</option>
-            <option value="general">General</option>
-            <option value="social">Social</option>
-            <option value="creative">Creative</option>
-            <option value="physical">Physical</option>
-            <option value="challenge">Challenge</option>
-          </select>
-          
-          <select 
-            value={statusFilter} 
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">Alle statussen</option>
-            <option value="not_started">Nog te doen</option>
-            <option value="submitted">Wacht op beoordeling</option>
-            <option value="approved">Goedgekeurd (review)</option>
-            <option value="completed_jury">Goedgekeurd (jury)</option>
-            <option value="rejected">Afgewezen</option>
-          </select>
-        </div>
+        <select 
+          value={statusFilter} 
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">Alle statussen</option>
+          <option value="not_started">Nog te doen</option>
+          <option value="submitted">Wacht op beoordeling</option>
+          <option value="approved">Goedgekeurd (review)</option>
+          <option value="completed_jury">Goedgekeurd (jury)</option>
+          <option value="rejected">Afgewezen</option>
+        </select>
       </div>
+    </div>
 
-      {/* Assignments Grid */}
-      <div className="assignments-grid">
-        {filteredAssignments.map(assignment => {
-          const status = getAssignmentStatus(assignment);
-          const assignmentStatus = assignmentStatuses[assignment.number];
+    {/* Assignments Grid */}
+    <div className="assignments-grid">
+      {filteredAssignments.map(assignment => {
+        const status = getAssignmentStatus(assignment);
+        const assignmentStatus = assignmentStatuses[assignment.number];
+        
+        return (
+          <div 
+            key={assignment.id}
+            className={`assignment-card ${status} ${getStatusColor(status)}`}
+            onClick={() => handleAssignmentClick(assignment)}
+          >
+            <div className="assignment-header">
+              <div className="assignment-number">#{assignment.number}</div>
+              <div className="assignment-status">
+                {getStatusEmoji(status)}
+              </div>
+            </div>
+            
+            <div className="assignment-content">
+              <h3 className="assignment-title">{assignment.title}</h3>
+              <p className="assignment-description">{assignment.description}</p>
+            </div>
+            
+            <div className="assignment-footer">
+              <div className="assignment-meta">
+                <span className={`difficulty-indicator ${getDifficultyColor(assignment.difficulty)}`}>
+                  {assignment.difficulty}
+                </span>
+                <span className="points">{assignment.points_base} pt</span>
+              </div>
+              
+              {assignmentStatus && (status === 'approved' || status === 'completed_jury') && (
+                <div className="points-awarded">
+                  +{assignmentStatus.points_awarded} punten
+                </div>
+              )}
+            </div>
+            
+            <div className="assignment-requirements">
+              {assignment.requires_photo && <span className="req">📸</span>}
+              {assignment.requires_video && <span className="req">🎥</span>}
+              {assignment.requires_audio && <span className="req">🎵</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {filteredAssignments.length === 0 && (
+      <div className="no-assignments">
+        <p>Geen opdrachten gevonden met de huidige filters.</p>
+      </div>
+    )}
+
+    {/* Upload Modal */}
+    {uploadModal && selectedAssignment && (
+      <div className="modal-overlay" onClick={() => setUploadModal(false)}>
+        <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>📤 Upload bewijs</h3>
+            <button onClick={() => setUploadModal(false)}>✕</button>
+          </div>
           
-          return (
-            <div 
-              key={assignment.id}
-              className={`assignment-card ${status} ${getStatusColor(status)}`}
-              onClick={() => handleAssignmentClick(assignment)}
-            >
-              <div className="assignment-header">
-                <div className="assignment-number">#{assignment.number}</div>
-                <div className="assignment-status">
-                  {getStatusEmoji(status)}
+          <div className="modal-content">
+            <div className="assignment-info">
+              <h4>#{selectedAssignment.number} - {selectedAssignment.title}</h4>
+              <p>{selectedAssignment.description}</p>
+            </div>
+            
+            {/* Progress Indicators */}
+            {uploading && (
+              <div style={{ marginBottom: '1rem' }}>
+                {/* Compression Progress */}
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                    <span>🗜️ Comprimeren</span>
+                    <span>{compressionProgress}%</span>
+                  </div>
+                  <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
+                    <div style={{ 
+                      width: `${compressionProgress}%`, 
+                      backgroundColor: '#10b981', 
+                      height: '100%', 
+                      borderRadius: '0.375rem',
+                      transition: 'width 0.3s ease'
+                    }}></div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="assignment-content">
-                <h3 className="assignment-title">{assignment.title}</h3>
-                <p className="assignment-description">{assignment.description}</p>
-              </div>
-              
-              <div className="assignment-footer">
-                <div className="assignment-meta">
-                  <span className={`difficulty-indicator ${getDifficultyColor(assignment.difficulty)}`}>
-                    {assignment.difficulty}
-                  </span>
-                  <span className="points">{assignment.points_base} pt</span>
+
+                {/* Upload Progress */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                    <span>📤 Uploaden</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
+                    <div style={{ 
+                      width: `${uploadProgress}%`, 
+                      backgroundColor: '#3b82f6', 
+                      height: '100%', 
+                      borderRadius: '0.375rem',
+                      transition: 'width 0.3s ease'
+                    }}></div>
+                  </div>
                 </div>
-                
-                {assignmentStatus && (status === 'approved' || status === 'completed_jury') && (
-                  <div className="points-awarded">
-                    +{assignmentStatus.points_awarded} punten
+
+                {/* File Size Info */}
+                {originalSize > 0 && compressedSize > 0 && (
+                  <div style={{ 
+                    marginTop: '0.75rem', 
+                    padding: '0.75rem', 
+                    backgroundColor: '#f0f9ff', 
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem'
+                  }}>
+                    <div>📁 Origineel: {formatFileSize(originalSize)}</div>
+                    <div>🗜️ Gecomprimeerd: {formatFileSize(compressedSize)}</div>
+                    {compressedSize < originalSize && (
+                      <div style={{ color: '#059669', fontWeight: '600' }}>
+                        💾 {Math.round((1 - compressedSize / originalSize) * 100)}% kleiner!
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-              
-              <div className="assignment-requirements">
-                {assignment.requires_photo && <span className="req">📸</span>}
-                {assignment.requires_video && <span className="req">🎥</span>}
-                {assignment.requires_audio && <span className="req">🎵</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {filteredAssignments.length === 0 && (
-        <div className="no-assignments">
-          <p>Geen opdrachten gevonden met de huidige filters.</p>
-        </div>
-      )}
-
-      {/* Upload Modal */}
-      {uploadModal && selectedAssignment && (
-        <div className="modal-overlay" onClick={() => setUploadModal(false)}>
-          <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>📤 Upload bewijs</h3>
-              <button onClick={() => setUploadModal(false)}>✕</button>
-            </div>
+            )}
             
-            <div className="modal-content">
-              <div className="assignment-info">
-                <h4>#{selectedAssignment.number} - {selectedAssignment.title}</h4>
-                <p>{selectedAssignment.description}</p>
+            <div className="upload-area">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={`${selectedAssignment.requires_photo ? 'image/*' : ''}${selectedAssignment.requires_video ? ',video/*' : ''}${selectedAssignment.requires_audio ? ',audio/*' : ''}`}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+                style={{ display: 'none' }}
+              />
+              
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="upload-btn"
+              >
+                {uploading ? '⏳ Bezig met uploaden...' : '📁 Kies bestand'}
+              </button>
+              
+              <div className="requirements">
+                <p>Vereist voor deze opdracht:</p>
+                {selectedAssignment.requires_photo && <span>📸 Foto</span>}
+                {selectedAssignment.requires_video && <span>🎥 Video</span>}
+                {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
               </div>
-              
-              {/* Progress Indicators */}
-              {uploading && (
-                <div style={{ marginBottom: '1rem' }}>
-                  {/* Compression Progress */}
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-                      <span>🗜️ Comprimeren</span>
-                      <span>{compressionProgress}%</span>
-                    </div>
-                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
-                      <div style={{ 
-                        width: `${compressionProgress}%`, 
-                        backgroundColor: '#10b981', 
-                        height: '100%', 
-                        borderRadius: '0.375rem',
-                        transition: 'width 0.3s ease'
-                      }}></div>
-                    </div>
-                  </div>
 
-                  {/* Upload Progress */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-                      <span>📤 Uploaden</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '0.375rem', height: '0.5rem' }}>
-                      <div style={{ 
-                        width: `${uploadProgress}%`, 
-                        backgroundColor: '#3b82f6', 
-                        height: '100%', 
-                        borderRadius: '0.375rem',
-                        transition: 'width 0.3s ease'
-                      }}></div>
-                    </div>
-                  </div>
-
-                  {/* File Size Info */}
-                  {originalSize > 0 && compressedSize > 0 && (
-                    <div style={{ 
-                      marginTop: '0.75rem', 
-                      padding: '0.75rem', 
-                      backgroundColor: '#f0f9ff', 
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem'
-                    }}>
-                      <div>📁 Origineel: {formatFileSize(originalSize)}</div>
-                      <div>🗜️ Gecomprimeerd: {formatFileSize(compressedSize)}</div>
-                      {compressedSize < originalSize && (
-                        <div style={{ color: '#059669', fontWeight: '600' }}>
-                          💾 {Math.round((1 - compressedSize / originalSize) * 100)}% kleiner!
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <div className="upload-area">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={`${selectedAssignment.requires_photo ? 'image/*' : ''}${selectedAssignment.requires_video ? ',video/*' : ''}${selectedAssignment.requires_audio ? ',audio/*' : ''}`}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file);
-                  }}
-                  style={{ display: 'none' }}
-                />
-                
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="upload-btn"
-                >
-                  {uploading ? '⏳ Bezig met uploaden...' : '📁 Kies bestand'}
-                </button>
-                
-                <div className="requirements">
-                  <p>Vereist voor deze opdracht:</p>
-                  {selectedAssignment.requires_photo && <span>📸 Foto</span>}
-                  {selectedAssignment.requires_video && <span>🎥 Video</span>}
-                  {selectedAssignment.requires_audio && <span>🎵 Audio</span>}
-                </div>
-
-                {/* Tips */}
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '0.75rem', 
-                  backgroundColor: '#fef3cd', 
-                  borderRadius: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#92400e'
-                }}>
-                  <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>💡 Tips:</div>
-                  <div>• Foto's worden automatisch verkleind voor snellere upload</div>
-                  <div>• Video's korter dan 30 sec werken het beste</div>
-                  <div>• Maximum bestandsgrootte: 150MB</div>
-                </div>
+              {/* Tips */}
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '0.75rem', 
+                backgroundColor: '#fef3cd', 
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                color: '#92400e'
+              }}>
+                <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>💡 Tips:</div>
+                <div>• Foto's worden automatisch verkleind voor snellere upload</div>
+                <div>• Video's korter dan 30 sec werken het beste</div>
+                <div>• Maximum bestandsgrootte: 150MB</div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* Hidden Canvas voor Image Compressie */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-    </div>
-  );
-};
+    {/* Hidden Canvas voor Image Compressie */}
+    <canvas ref={canvasRef} style={{ display: 'none' }} />
+  </div>
+);
+}; // Dit was de ontbrekende sluitende bracket!
 
 export default TeamInterface;
