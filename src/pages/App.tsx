@@ -7,7 +7,7 @@ import TextManagement from './TextManagement';
 import AssignmentManagement from './AssignmentManagement';
 import JuryReviewInterface from './JuryReviewInterface'; // Nieuwe import
 import TeamInterface from './TeamInterface';
-import MessageManagement from './pages/MessageManagement';
+import MessageManagement from './MessageManagement';
 import '../styles/App.css';
 
 type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'review' | 'messages' | 'login';
