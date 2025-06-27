@@ -7,9 +7,11 @@ import TextManagement from './TextManagement';
 import AssignmentManagement from './AssignmentManagement';
 import JuryReviewInterface from './JuryReviewInterface'; // Nieuwe import
 import TeamInterface from './TeamInterface';
+import MessageManagement from './pages/MessageManagement';
 import '../styles/App.css';
 
-type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'review' | 'login'; // Voeg 'review' toe
+type PageType = 'admin' | 'teams' | 'scoreboard' | 'logbook' | 'texts' | 'assignments' | 'review' | 'messages' | 'login';
+
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
@@ -137,54 +139,56 @@ const generateTeamURL = (token: string) => {
 
   
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'admin':
-        return <AdminPage />;
-      case 'teams':
-        return <TeamManagement generateTeamURL={generateTeamURL} />;
-      case 'scoreboard':
-        return <ScoreboardPage />;
-      case 'logbook':
-        return <LogbookPage />;
-      case 'texts':
-        return <TextManagement />;
-      case 'assignments':
-        return <AssignmentManagement />;
-      case 'review':
-        return <JuryReviewInterface />; // Nieuwe case
-      case 'login':
-        return (
-          <div className="login-container">
-            <div className="login-box">
-              <h1>🎲 Crazy 88 - Jury toegang</h1>
-              <p>Voor toegang tot jury functies is een wachtwoord vereist.</p>
-              <div className="login-form">
-                <input
-                  type="password"
-                  placeholder="Wachtwoord"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                />
-                <button onClick={handleLogin}>Inloggen</button>
-              </div>
-              <div className="public-access">
-                <p>Alleen scoreboard bekijken?</p>
-                <button 
-                  className="scoreboard-btn"
-                  onClick={() => handlePageChange('scoreboard')}
-                >
-                  📊 Naar scoreboard
-                </button>
-              </div>
+ const renderPage = () => {
+  switch (currentPage) {
+    case 'admin':
+      return <AdminPage />;
+    case 'teams':
+      return <TeamManagement generateTeamURL={generateTeamURL} />;
+    case 'scoreboard':
+      return <ScoreboardPage />;
+    case 'logbook':
+      return <LogbookPage />;
+    case 'texts':
+      return <TextManagement />;
+    case 'assignments':
+      return <AssignmentManagement />;
+    case 'review':
+      return <JuryReviewInterface />;
+    case 'messages': // NIEUW
+      return <MessageManagement />;
+    case 'login':
+      return (
+        <div className="login-container">
+          <div className="login-box">
+            <h1>🎲 Crazy 88 - Jury toegang</h1>
+            <p>Voor toegang tot jury functies is een wachtwoord vereist.</p>
+            <div className="login-form">
+              <input
+                type="password"
+                placeholder="Wachtwoord"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              />
+              <button onClick={handleLogin}>Inloggen</button>
+            </div>
+            <div className="public-access">
+              <p>Alleen scoreboard bekijken?</p>
+              <button 
+                className="scoreboard-btn"
+                onClick={() => handlePageChange('scoreboard')}
+              >
+                📊 Naar scoreboard
+              </button>
             </div>
           </div>
-        );
-      default:
-        return <AdminPage />;
-    }
-  };
+        </div>
+      );
+    default:
+      return <AdminPage />;
+  }
+};
 
   // Team interface rendering (heeft voorrang)
   if (teamToken) {
@@ -224,58 +228,64 @@ const generateTeamURL = (token: string) => {
   // Authenticated admin interface
   return (
     <div className="app">
-      <nav className="navbar">
-        <div className="nav-brand">
-          <h1>🎲 Crazy 88 - Jury panel</h1>
-        </div>
-        <div className="nav-links">
-          <button 
-            className={currentPage === 'admin' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('admin')}
-          >
-            🎯 Jury
-          </button>
-          <button 
-            className={currentPage === 'teams' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('teams')}
-          >
-            👥 Teams
-          </button>
-          <button 
-            className={currentPage === 'assignments' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('assignments')}
-          >
-            📝 Opdrachten
-          </button>
-          <button 
-            className={currentPage === 'review' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('review')}
-          >
-            👩‍⚖️ Review
-          </button>
-          <button 
-            className={currentPage === 'logbook' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('logbook')}
-          >
-            📋 Logboek
-          </button>
-          <button 
-            className={currentPage === 'scoreboard' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('scoreboard')}
-          >
-            📊 Scoreboard
-          </button>
-          <button 
-            className={currentPage === 'texts' ? 'nav-active' : ''}
-            onClick={() => handlePageChange('texts')}
-          >
-            🌐 Teksten
-          </button>
-          <button className="logout-btn" onClick={handleLogout}>
-            🚪 Uitloggen
-          </button>
-        </div>
-      </nav>
+<nav className="navbar">
+  <div className="nav-brand">
+    <h1>🎲 Crazy 88 - Jury panel</h1>
+  </div>
+  <div className="nav-links">
+    <button 
+      className={currentPage === 'admin' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('admin')}
+    >
+      🎯 Jury
+    </button>
+    <button 
+      className={currentPage === 'teams' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('teams')}
+    >
+      👥 Teams
+    </button>
+    <button 
+      className={currentPage === 'assignments' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('assignments')}
+    >
+      📝 Opdrachten
+    </button>
+    <button 
+      className={currentPage === 'review' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('review')}
+    >
+      👩‍⚖️ Review
+    </button>
+    <button 
+      className={currentPage === 'messages' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('messages')}
+    >
+      📢 Berichten
+    </button>
+    <button 
+      className={currentPage === 'logbook' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('logbook')}
+    >
+      📋 Logboek
+    </button>
+    <button 
+      className={currentPage === 'scoreboard' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('scoreboard')}
+    >
+      📊 Scoreboard
+    </button>
+    <button 
+      className={currentPage === 'texts' ? 'nav-active' : ''}
+      onClick={() => handlePageChange('texts')}
+    >
+      🌐 Teksten
+    </button>
+    <button className="logout-btn" onClick={handleLogout}>
+      🚪 Uitloggen
+    </button>
+  </div>
+</nav>
       
       <main className="main-content">
         {renderPage()}

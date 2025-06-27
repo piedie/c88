@@ -4639,3 +4639,476 @@ button:disabled {
     background: white !important;
   }
 }
+/* Voeg deze CSS toe aan je App.css bestand - TEAM BERICHTEN SYSTEEM */
+
+/* ===== ADMIN PANEL - MESSAGE MANAGEMENT ===== */
+
+.messages-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.messages-header h2 {
+  color: #1f2937;
+  margin: 0;
+}
+
+.messages-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.messages-stats .stat {
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+/* Quick Messages */
+.quick-messages {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.quick-messages h3 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+}
+
+.quick-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.quick-msg-btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.quick-msg-btn.info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.quick-msg-btn.info:hover {
+  background: #bfdbfe;
+}
+
+.quick-msg-btn.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.quick-msg-btn.success:hover {
+  background: #bbf7d0;
+}
+
+.quick-msg-btn.warning {
+  background: #fef3cd;
+  color: #92400e;
+}
+
+.quick-msg-btn.warning:hover {
+  background: #fde68a;
+}
+
+.quick-msg-btn.urgent {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.quick-msg-btn.urgent:hover {
+  background: #fecaca;
+}
+
+/* Send Message Form */
+.send-message-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.send-message-form h3 {
+  margin: 0 0 1.5rem 0;
+  color: #1f2937;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.send-btn {
+  background: #3b82f6 !important;
+  color: white !important;
+  padding: 0.75rem 1.5rem !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+  font-size: 0.875rem !important;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: #2563eb !important;
+}
+
+.send-btn:disabled {
+  background: #9ca3af !important;
+  cursor: not-allowed !important;
+}
+
+/* Messages List */
+.messages-list {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.messages-list h3 {
+  margin: 0 0 1.5rem 0;
+  color: #1f2937;
+}
+
+.no-messages {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.messages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.message-card {
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 2px solid;
+  transition: all 0.2s;
+}
+
+.message-card.inactive {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.message-title {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.875rem;
+}
+
+.message-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toggle-btn,
+.delete-btn {
+  background: none !important;
+  border: 1px solid #d1d5db !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 0.25rem !important;
+  cursor: pointer !important;
+  font-size: 0.75rem !important;
+  transition: all 0.2s !important;
+}
+
+.toggle-btn.active {
+  background: #dcfce7 !important;
+  border-color: #10b981 !important;
+}
+
+.toggle-btn.inactive {
+  background: #f3f4f6 !important;
+  border-color: #9ca3af !important;
+}
+
+.delete-btn:hover {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+}
+
+.message-content {
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin-bottom: 0.75rem;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.message-target {
+  font-weight: 500;
+}
+
+.message-expires {
+  font-size: 0.75rem;
+  color: #dc2626;
+  font-style: italic;
+}
+
+/* ===== TEAM INTERFACE - MESSAGE DISPLAY ===== */
+
+.team-messages-float {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+}
+
+.messages-toggle-btn {
+  background: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem !important;
+  border-radius: 50% !important;
+  font-size: 1.25rem !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+  transition: all 0.2s !important;
+  position: relative !important;
+}
+
+.messages-toggle-btn:hover {
+  background: #2563eb !important;
+  transform: scale(1.05) !important;
+}
+
+.unread-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.team-messages-panel {
+  position: fixed;
+  top: 4rem;
+  right: 1rem;
+  width: 350px;
+  max-height: 500px;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  z-index: 999;
+}
+
+.messages-panel-header {
+  background: #f8fafc;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.messages-panel-header h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.close-messages-btn {
+  background: none !important;
+  border: none !important;
+  font-size: 1.25rem !important;
+  cursor: pointer !important;
+  color: #6b7280 !important;
+  padding: 0.25rem !important;
+}
+
+.messages-panel-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.team-message-item {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 2px solid;
+  position: relative;
+}
+
+.team-message-item.unread {
+  background: #f0f9ff;
+  border-color: #3b82f6;
+}
+
+.team-message-item.read {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.team-message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.team-message-title {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.875rem;
+}
+
+.team-message-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.team-message-content {
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.mark-read-btn {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+  border: none !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 0.25rem !important;
+  font-size: 0.75rem !important;
+  cursor: pointer !important;
+  margin-top: 0.5rem !important;
+}
+
+.mark-read-btn:hover {
+  background: #c7d2fe !important;
+}
+
+.no-team-messages {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.urgent-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 600;
+  z-index: 1001;
+  animation: urgentPulse 2s infinite;
+}
+
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .team-messages-panel {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    left: 1rem;
+  }
+  
+  .quick-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .messages-grid {
+    grid-template-columns: 1fr;
+  }
+}
