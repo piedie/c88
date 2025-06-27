@@ -516,27 +516,29 @@ const TeamInterface = ({ token }: { token: string }) => {
     return status.status;
   };
 
-  const getStatusEmoji = (status: string) => {
-    switch (status) {
-      case 'approved': return '✅';
-      case 'completed_jury': return '🏆';
-      case 'submitted': return '⏳';
-      case 'rejected': return '❌';
-      case 'needs_review': return '🔍';
-      default: return '📋';
-    }
-  };
+  // VERVANG de getStatusEmoji functie:
+const getStatusEmoji = (status: string) => {
+  switch (status) {
+    case 'approved': return '✅';
+    case 'completed_jury': return '✅'; // Ook groen vinkje i.p.v. beker
+    case 'submitted': return '⏳';
+    case 'rejected': return '❌';
+    case 'needs_review': return '🔍';
+    default: return '📋';
+  }
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': 
-      case 'completed_jury': return 'bg-green-100 border-green-300 text-green-800';
-      case 'submitted': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
-      case 'rejected': return 'bg-red-100 border-red-300 text-red-800';
-      case 'needs_review': return 'bg-blue-100 border-blue-300 text-blue-800';
-      default: return 'bg-gray-100 border-gray-300 text-gray-800';
-    }
-  };
+ // VERVANG de getStatusColor functie:
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'approved': 
+    case 'completed_jury': return 'bg-green-100 border-green-300 text-green-800'; // Beide groen
+    case 'submitted': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+    case 'rejected': return 'bg-red-100 border-red-300 text-red-800';
+    case 'needs_review': return 'bg-blue-100 border-blue-300 text-blue-800';
+    default: return 'bg-gray-100 border-gray-300 text-gray-800';
+  }
+};
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -669,8 +671,8 @@ const TeamInterface = ({ token }: { token: string }) => {
             <option value="all">Alle statussen</option>
             <option value="not_started">Nog te doen</option>
             <option value="submitted">Wacht op beoordeling</option>
-            <option value="approved">Goedgekeurd</option>
-            <option value="completed_jury">Voltooid via jury</option>
+            <option value="approved">Goedgekeurd (review)</option>
+            <option value="completed_jury">Goedgekeurd (jury)</option>
             <option value="rejected">Afgewezen</option>
           </select>
         </div>
