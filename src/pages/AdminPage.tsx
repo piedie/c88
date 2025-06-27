@@ -90,16 +90,32 @@ const AdminPage = () => {
     setTeamScores(scores);
   };
 
-  const fetchCompletedAssignments = async (teamId: string) => {
+ // VERVANG de fetchCompletedAssignments functie volledig:
+const fetchCompletedAssignments = async (teamId: string) => {
   if (!config) return;
   
-  // Gebruik het unified system om voltooide opdrachten op te halen
-  const completedNumbers = await AssignmentStatusManager.getCompletedAssignmentNumbers(
-    teamId, 
-    config.game_session_id
-  );
-  setCompletedAssignments(completedNumbers);
+  try {
+    // Gebruik het unified system om voltooide opdrachten op te halen
+    const completedNumbers = await AssignmentStatusManager.getCompletedAssignmentNumbers(
+      teamId, 
+      config.game_session_id
+    );
+    setCompletedAssignments(completedNumbers);
+    console.log('✅ Loaded completed assignments:', completedNumbers);
+  } catch (error) {
+    console.error('Error loading completed assignments:', error);
+    // Fallback naar oude methode als unified system faalt
+    const { data: scores } = await supabase
+      .from('scores')
+      .select('assignment_id')
+      .eq('team_id', teamId)
+      .eq('game_session_id', config.game_session_id);
+    
+    const completed = scores?.map(s => s.assignment_id) || [];
+    setCompletedAssignments(completed);
+  }
 };
+
 
 
  // VERVANG ook de fetchSubmissionStatuses functie:
@@ -157,58 +173,72 @@ const fetchSubmissionStatuses = async (teamId: string) => {
     fetchSubmissionStatuses(team.id); // Laad ook submission statuses
   };
 
-// VERVANG de handleAssignmentClick functie:
+// VERVANG de handleAssignmentClick functie volledig:
 const handleAssignmentClick = async (assignmentId: number) => {
   if (!selectedTeam || !config) return;
   
-  // Check huidige status via unified system
-  const currentStatus = await AssignmentStatusManager.getStatus(
-    selectedTeam.id,
-    assignmentId,
-    config.game_session_id
-  );
+  try {
+    console.log(`🎯 Handling assignment ${assignmentId} for team ${selectedTeam.name}`);
+    
+    // Check huidige status via unified system
+    const currentStatus = await AssignmentStatusManager.getStatus(
+      selectedTeam.id,
+      assignmentId,
+      config.game_session_id
+    );
 
-  if (currentStatus && (currentStatus.status === 'approved' || currentStatus.status === 'completed_jury')) {
-    alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId}. Status: ${currentStatus.status}`);
-    return;
-  }
+    console.log('📊 Current status:', currentStatus);
 
-  // Als er een submission bestaat, vraag bevestiging
-  if (currentStatus && currentStatus.status === 'submitted') {
-    if (!confirm(`Team "${selectedTeam.name}" heeft een submission ingediend voor opdracht ${assignmentId} die nog wacht op beoordeling.\n\nWil je handmatig punten toekennen? (Dit markeert de opdracht als voltooid via jury)`)) {
+    if (currentStatus && (currentStatus.status === 'approved' || currentStatus.status === 'completed_jury')) {
+      alert(`❌ Team "${selectedTeam.name}" heeft al punten voor opdracht ${assignmentId}. Status: ${currentStatus.status}`);
       return;
     }
-  }
 
-  if (currentStatus && currentStatus.status === 'rejected') {
-    if (!confirm(`Team "${selectedTeam.name}" heeft een afgewezen submission voor opdracht ${assignmentId}.\n\nWil je alsnog handmatig punten toekennen?`)) {
-      return;
+    // Als er een submission bestaat, vraag bevestiging
+    if (currentStatus && currentStatus.status === 'submitted') {
+      if (!confirm(`Team "${selectedTeam.name}" heeft een submission ingediend voor opdracht ${assignmentId} die nog wacht op beoordeling.\n\nWil je handmatig punten toekennen? (Dit markeert de opdracht als voltooid via jury)`)) {
+        return;
+      }
     }
-  }
-  
-  // Bepaal punten
-  const finalPoints = config.double_points_active ? 2 : 1;
-  
-  // Gebruik unified system om opdracht te voltooien
-  const success = await AssignmentStatusManager.completeViaJury(
-    selectedTeam.id,
-    assignmentId,
-    finalPoints,
-    config.game_session_id,
-    'jury',
-    'Handmatig toegekend via jury pagina'
-  );
 
-  if (success) {
-    setSelectedTeam(null);
-    setCompletedAssignments([]);
-    setSubmissionStatuses({});
-    fetchData(); // Refresh scores
-    alert(`✅ ${finalPoints} punten toegekend aan ${selectedTeam.name} voor opdracht ${assignmentId}`);
-  } else {
-    alert('❌ Fout bij toekennen van punten. Check de console voor details.');
+    if (currentStatus && currentStatus.status === 'rejected') {
+      if (!confirm(`Team "${selectedTeam.name}" heeft een afgewezen submission voor opdracht ${assignmentId}.\n\nWil je alsnog handmatig punten toekennen?`)) {
+        return;
+      }
+    }
+    
+    // Bepaal punten
+    const finalPoints = config.double_points_active ? 2 : 1;
+    
+    console.log(`💰 Assigning ${finalPoints} points via unified system...`);
+    
+    // Gebruik unified system om opdracht te voltooien
+    const success = await AssignmentStatusManager.completeViaJury(
+      selectedTeam.id,
+      assignmentId,
+      finalPoints,
+      config.game_session_id,
+      'jury',
+      'Handmatig toegekend via jury pagina'
+    );
+
+    if (success) {
+      console.log('✅ Points assigned successfully');
+      setSelectedTeam(null);
+      setCompletedAssignments([]);
+      setSubmissionStatuses({});
+      fetchData(); // Refresh scores
+      alert(`✅ ${finalPoints} punten toegekend aan ${selectedTeam.name} voor opdracht ${assignmentId}`);
+    } else {
+      console.error('❌ Failed to assign points via unified system');
+      alert('❌ Fout bij toekennen van punten. Check de console voor details.');
+    }
+  } catch (error) {
+    console.error('💥 Exception in handleAssignmentClick:', error);
+    alert('❌ Er ging iets mis bij het toekennen van punten.');
   }
 };
+
 
   const toggleDoublePoints = async () => {
     if (!config) return;
@@ -305,46 +335,54 @@ const handleAssignmentClick = async (assignmentId: number) => {
     fetchData();
   };
 
- // VERVANG de handleCreativityPoints functie:
+ // VERVANG de handleCreativityPoints functie volledig:
 const handleCreativityPoints = async () => {
   if (!creativityTeam || !creativityAssignment || !config) return;
   
   const assignmentId = parseInt(creativityAssignment);
   if (isNaN(assignmentId) || assignmentId < 1 || assignmentId > 88) return;
   
-  // Check via unified system of opdracht al voltooid is
-  const currentStatus = await AssignmentStatusManager.getStatus(
-    creativityTeam.id,
-    assignmentId,
-    config.game_session_id
-  );
+  try {
+    console.log(`🎨 Assigning creativity points for assignment ${assignmentId} to team ${creativityTeam.name}`);
+    
+    // Check via unified system of opdracht al voltooid is
+    const currentStatus = await AssignmentStatusManager.getStatus(
+      creativityTeam.id,
+      assignmentId,
+      config.game_session_id
+    );
 
-  if (currentStatus && (currentStatus.status === 'approved' || currentStatus.status === 'completed_jury')) {
-    alert(`Team "${creativityTeam.name}" heeft al punten voor opdracht ${assignmentId}. Creativiteitspunten kunnen niet worden toegevoegd aan reeds voltooide opdrachten.`);
-    return;
-  }
-  
-  // Gebruik unified system voor creativiteitspunten
-  const success = await AssignmentStatusManager.completeViaJury(
-    creativityTeam.id,
-    assignmentId,
-    5, // Creativity bonus
-    config.game_session_id,
-    'creativity',
-    'Creativiteitspunten toegekend door jury'
-  );
+    if (currentStatus && (currentStatus.status === 'approved' || currentStatus.status === 'completed_jury')) {
+      alert(`Team "${creativityTeam.name}" heeft al punten voor opdracht ${assignmentId}. Creativiteitspunten kunnen niet worden toegevoegd aan reeds voltooide opdrachten.`);
+      return;
+    }
+    
+    // Gebruik unified system voor creativiteitspunten
+    const success = await AssignmentStatusManager.completeViaJury(
+      creativityTeam.id,
+      assignmentId,
+      5, // Creativity bonus
+      config.game_session_id,
+      'creativity',
+      'Creativiteitspunten toegekend door jury'
+    );
 
-  if (success) {
-    setShowCreativityModal(false);
-    setCreativityTeam(null);
-    setCreativityAssignment('');
-    fetchData();
-    alert(`🎨 5 creativiteitspunten toegekend aan ${creativityTeam.name} voor opdracht ${assignmentId}!`);
-  } else {
-    alert('❌ Fout bij toekennen van creativiteitspunten');
+    if (success) {
+      console.log('✅ Creativity points assigned successfully');
+      setShowCreativityModal(false);
+      setCreativityTeam(null);
+      setCreativityAssignment('');
+      fetchData();
+      alert(`🎨 5 creativiteitspunten toegekend aan ${creativityTeam.name} voor opdracht ${assignmentId}!`);
+    } else {
+      console.error('❌ Failed to assign creativity points');
+      alert('❌ Fout bij toekennen van creativiteitspunten');
+    }
+  } catch (error) {
+    console.error('💥 Exception in handleCreativityPoints:', error);
+    alert('❌ Er ging iets mis bij het toekennen van creativiteitspunten.');
   }
 };
-
 
   const sendAnnouncement = async () => {
     if (!announcementText.trim() || !config) return;
