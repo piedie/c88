@@ -1,4 +1,4 @@
-// src/utils/assignmentStatus.ts - Unified Status Manager
+// src/utils/assignmentStatus.ts - Fixed Version zonder errors
 
 import { supabase } from '../lib/supabaseClient';
 
@@ -21,42 +21,52 @@ export interface AssignmentStatus {
 
 export class AssignmentStatusManager {
   
-  // Get status for specific team and assignment
+  // Get status for specific team and assignment - FIXED version
   static async getStatus(teamId: string, assignmentNumber: number, gameSessionId: string): Promise<AssignmentStatus | null> {
-    const { data, error } = await supabase
-      .from('assignment_status')
-      .select('*')
-      .eq('team_id', teamId)
-      .eq('assignment_number', assignmentNumber)
-      .eq('game_session_id', gameSessionId)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('Error fetching assignment status:', error);
+    try {
+      const { data, error } = await supabase
+        .from('assignment_status')
+        .select('*')
+        .eq('team_id', teamId)
+        .eq('assignment_number', assignmentNumber)
+        .eq('game_session_id', gameSessionId)
+        .maybeSingle(); // Deze methode geeft geen error als er niks gevonden wordt
+      
+      if (error) {
+        console.error('Error fetching assignment status:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception fetching assignment status:', error);
       return null;
     }
-    
-    return data;
   }
 
-  // Get all statuses for a team
+  // Get all statuses for a team - FIXED version
   static async getTeamStatuses(teamId: string, gameSessionId: string): Promise<AssignmentStatus[]> {
-    const { data, error } = await supabase
-      .from('assignment_status')
-      .select('*')
-      .eq('team_id', teamId)
-      .eq('game_session_id', gameSessionId)
-      .order('assignment_number');
-    
-    if (error) {
-      console.error('Error fetching team statuses:', error);
+    try {
+      const { data, error } = await supabase
+        .from('assignment_status')
+        .select('*')
+        .eq('team_id', teamId)
+        .eq('game_session_id', gameSessionId)
+        .order('assignment_number');
+      
+      if (error) {
+        console.error('Error fetching team statuses:', error);
+        return [];
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Exception fetching team statuses:', error);
       return [];
     }
-    
-    return data || [];
   }
 
-  // Update assignment status (SINGLE SOURCE OF TRUTH)
+  // Update assignment status - FIXED version
   static async updateStatus(
     teamId: string, 
     assignmentNumber: number, 
@@ -106,7 +116,7 @@ export class AssignmentStatusManager {
     }
   }
 
-  // Complete assignment via jury (creativity/manual)
+  // Complete assignment via jury - FIXED version
   static async completeViaJury(
     teamId: string, 
     assignmentNumber: number, 
@@ -154,7 +164,7 @@ export class AssignmentStatusManager {
     }
   }
 
-  // Complete assignment via review approval
+  // Complete assignment via review approval - FIXED version  
   static async completeViaReview(
     submissionId: string,
     teamId: string,
@@ -205,28 +215,33 @@ export class AssignmentStatusManager {
     }
   }
 
-  // Submit assignment (team uploads)
+  // Submit assignment - FIXED version
   static async submitAssignment(
     submissionId: string,
     teamId: string,
     assignmentNumber: number,
     gameSessionId: string
   ): Promise<boolean> {
-    return await this.updateStatus(
-      teamId,
-      assignmentNumber,
-      'submitted',
-      0,
-      'review',
-      gameSessionId,
-      {
-        submissionId,
-        completedBy: 'team'
-      }
-    );
+    try {
+      return await this.updateStatus(
+        teamId,
+        assignmentNumber,
+        'submitted',
+        0,
+        'review',
+        gameSessionId,
+        {
+          submissionId,
+          completedBy: 'team'
+        }
+      );
+    } catch (error) {
+      console.error('Exception in submitAssignment:', error);
+      return false;
+    }
   }
 
-  // Reject assignment
+  // Reject assignment - FIXED version
   static async rejectAssignment(
     submissionId: string,
     teamId: string,
@@ -234,36 +249,46 @@ export class AssignmentStatusManager {
     gameSessionId: string,
     notes?: string
   ): Promise<boolean> {
-    // Remove score if it exists
-    await supabase
-      .from('scores')
-      .delete()
-      .eq('team_id', teamId)
-      .eq('assignment_id', assignmentNumber)
-      .eq('game_session_id', gameSessionId);
+    try {
+      // Remove score if it exists
+      await supabase
+        .from('scores')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('assignment_id', assignmentNumber)
+        .eq('game_session_id', gameSessionId);
 
-    return await this.updateStatus(
-      teamId,
-      assignmentNumber,
-      'rejected',
-      0,
-      'review',
-      gameSessionId,
-      {
-        submissionId,
-        notes,
-        completedBy: 'review'
-      }
-    );
+      return await this.updateStatus(
+        teamId,
+        assignmentNumber,
+        'rejected',
+        0,
+        'review',
+        gameSessionId,
+        {
+          submissionId,
+          notes,
+          completedBy: 'review'
+        }
+      );
+    } catch (error) {
+      console.error('Exception in rejectAssignment:', error);
+      return false;
+    }
   }
 
-  // Check if assignment is completed (any method)
+  // Check if assignment is completed - FIXED version
   static async isCompleted(teamId: string, assignmentNumber: number, gameSessionId: string): Promise<boolean> {
-    const status = await this.getStatus(teamId, assignmentNumber, gameSessionId);
-    return status?.status === 'approved' || status?.status === 'completed_jury';
+    try {
+      const status = await this.getStatus(teamId, assignmentNumber, gameSessionId);
+      return status?.status === 'approved' || status?.status === 'completed_jury';
+    } catch (error) {
+      console.error('Exception checking completion status:', error);
+      return false;
+    }
   }
 
-  // Get team progress summary
+  // Get team progress summary - FIXED version
   static async getTeamProgress(teamId: string, gameSessionId: string): Promise<{
     total_assignments: number;
     completed: number;
@@ -271,33 +296,49 @@ export class AssignmentStatusManager {
     rejected: number;
     total_points: number;
   }> {
-    const statuses = await this.getTeamStatuses(teamId, gameSessionId);
-    
-    const completed = statuses.filter(s => s.status === 'approved' || s.status === 'completed_jury').length;
-    const submitted = statuses.filter(s => s.status === 'submitted').length;
-    const rejected = statuses.filter(s => s.status === 'rejected').length;
-    const total_points = statuses
-      .filter(s => s.status === 'approved' || s.status === 'completed_jury')
-      .reduce((sum, s) => sum + s.points_awarded, 0);
+    try {
+      const statuses = await this.getTeamStatuses(teamId, gameSessionId);
+      
+      const completed = statuses.filter(s => s.status === 'approved' || s.status === 'completed_jury').length;
+      const submitted = statuses.filter(s => s.status === 'submitted').length;
+      const rejected = statuses.filter(s => s.status === 'rejected').length;
+      const total_points = statuses
+        .filter(s => s.status === 'approved' || s.status === 'completed_jury')
+        .reduce((sum, s) => sum + s.points_awarded, 0);
 
-    return {
-      total_assignments: 88, // Fixed total
-      completed,
-      submitted,
-      rejected,
-      total_points
-    };
+      return {
+        total_assignments: 88, // Fixed total
+        completed,
+        submitted,
+        rejected,
+        total_points
+      };
+    } catch (error) {
+      console.error('Exception getting team progress:', error);
+      return {
+        total_assignments: 88,
+        completed: 0,
+        submitted: 0,
+        rejected: 0,
+        total_points: 0
+      };
+    }
   }
 
-  // Get completed assignment numbers for a team (for UI graying out)
+  // Get completed assignment numbers - FIXED version
   static async getCompletedAssignmentNumbers(teamId: string, gameSessionId: string): Promise<number[]> {
-    const statuses = await this.getTeamStatuses(teamId, gameSessionId);
-    return statuses
-      .filter(s => s.status === 'approved' || s.status === 'completed_jury')
-      .map(s => s.assignment_number);
+    try {
+      const statuses = await this.getTeamStatuses(teamId, gameSessionId);
+      return statuses
+        .filter(s => s.status === 'approved' || s.status === 'completed_jury')
+        .map(s => s.assignment_number);
+    } catch (error) {
+      console.error('Exception getting completed assignments:', error);
+      return [];
+    }
   }
 
-  // Reset game session (admin function)
+  // Reset game session - FIXED version
   static async resetGameSession(oldSessionId: string, newSessionId: string, keepTeams: boolean = true): Promise<boolean> {
     try {
       if (keepTeams) {

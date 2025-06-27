@@ -107,139 +107,153 @@ const JuryReviewInterface = () => {
     }
   };
 
-// VERVANG de handleReview functie:
-const handleReview = async (submissionId: string, status: 'approved' | 'rejected', points?: number, notes?: string) => {
-  try {
-    const submission = submissions.find(s => s.id === submissionId);
-    if (!submission) return;
+  // FIXED handleReview functie met unified system
+  const handleReview = async (submissionId: string, status: 'approved' | 'rejected', points?: number, notes?: string) => {
+    try {
+      const submission = submissions.find(s => s.id === submissionId);
+      if (!submission) return;
 
-    // Bereken punten
-    let finalPoints = 0;
-    if (status === 'approved') {
-      if (customPoints !== null) {
-        finalPoints = customPoints;
-      } else {
-        finalPoints = submission.assignment_points_base || 1;
-        if (config?.double_points_active) {
-          finalPoints *= 2;
+      console.log(`🔍 Reviewing submission ${submissionId} with status: ${status}`);
+
+      // Bereken punten
+      let finalPoints = 0;
+      if (status === 'approved') {
+        if (customPoints !== null) {
+          finalPoints = customPoints;
+        } else {
+          finalPoints = submission.assignment_points_base || 1;
+          if (config?.double_points_active) {
+            finalPoints *= 2;
+          }
         }
       }
+
+      console.log(`💰 Final points: ${finalPoints}`);
+
+      // Update submission in submissions tabel
+      const { error: updateError } = await supabase
+        .from('submissions')
+        .update({
+          status,
+          points_awarded: finalPoints,
+          jury_notes: notes || '',
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', submissionId);
+
+      if (updateError) {
+        console.error('Error updating submission:', updateError);
+        alert('Fout bij opslaan van beoordeling');
+        return;
+      }
+
+      console.log('✅ Submission updated successfully');
+
+      // Gebruik unified system om status bij te werken
+      let success = false;
+      if (status === 'approved') {
+        console.log('📊 Updating via unified system: approved');
+        success = await AssignmentStatusManager.completeViaReview(
+          submissionId,
+          submission.team_id,
+          submission.assignment_number!,
+          finalPoints,
+          config?.game_session_id!,
+          notes
+        );
+      } else {
+        console.log('📊 Updating via unified system: rejected');
+        success = await AssignmentStatusManager.rejectAssignment(
+          submissionId,
+          submission.team_id,
+          submission.assignment_number!,
+          config?.game_session_id!,
+          notes
+        );
+      }
+
+      if (!success) {
+        console.error('❌ Unified status update failed');
+        alert('⚠️ Submission bijgewerkt, maar status synchronisatie mislukt. Check de console voor details.');
+      } else {
+        console.log('✅ Unified status updated successfully');
+      }
+
+      // Update local state
+      setSubmissions(prev => prev.map(s => 
+        s.id === submissionId 
+          ? { ...s, status, points_awarded: finalPoints, jury_notes: notes || '', reviewed_at: new Date().toISOString() }
+          : s
+      ));
+
+      // Reset en sluit modal
+      setReviewModal(false);
+      setSelectedSubmission(null);
+      setJuryNotes('');
+      setCustomPoints(null);
+
+      // Geen irritante popup - alleen console log
+      console.log(`✅ ${status === 'approved' ? 'Goedgekeurd' : 'Afgekeurd'} en gesynchroniseerd!`);
+
+    } catch (error) {
+      console.error('💥 Error in handleReview:', error);
+      alert('Er ging iets mis bij het beoordelen');
     }
+  };
 
-    // Update submission in submissions tabel
-    const { error: updateError } = await supabase
-      .from('submissions')
-      .update({
-        status,
-        points_awarded: finalPoints,
-        jury_notes: notes || '',
-        reviewed_at: new Date().toISOString()
-      })
-      .eq('id', submissionId);
-
-    if (updateError) {
-      console.error('Error updating submission:', updateError);
-      alert('Fout bij opslaan van beoordeling');
+  // FIXED synchronizeAllApprovedSubmissions functie
+  const synchronizeAllApprovedSubmissions = async () => {
+    if (!confirm('Wil je alle goedgekeurde submissions synchroniseren met het unified system? Dit kan even duren.')) {
       return;
     }
 
-    // Gebruik unified system om status bij te werken
-    let success = false;
-    if (status === 'approved') {
-      success = await AssignmentStatusManager.completeViaReview(
-        submissionId,
-        submission.team_id,
-        submission.assignment_number!,
-        finalPoints,
-        config?.game_session_id!,
-        notes
-      );
-    } else {
-      success = await AssignmentStatusManager.rejectAssignment(
-        submissionId,
-        submission.team_id,
-        submission.assignment_number!,
-        config?.game_session_id!,
-        notes
-      );
-    }
-
-    if (!success) {
-      console.error('❌ Unified status update failed');
-      alert('⚠️ Submission bijgewerkt, maar status synchronisatie mislukt. Check de console voor details.');
-    }
-
-    // Update local state
-    setSubmissions(prev => prev.map(s => 
-      s.id === submissionId 
-        ? { ...s, status, points_awarded: finalPoints, jury_notes: notes || '', reviewed_at: new Date().toISOString() }
-        : s
-    ));
-
-    // Reset en sluit modal
-    setReviewModal(false);
-    setSelectedSubmission(null);
-    setJuryNotes('');
-    setCustomPoints(null);
-
-    alert(`✅ ${status === 'approved' ? 'Goedgekeurd' : 'Afgekeurd'} en gesynchroniseerd!`);
-
-  } catch (error) {
-    console.error('💥 Error in handleReview:', error);
-    alert('Er ging iets mis bij het beoordelen');
-  }
-};
-
-
-// VERVANG de synchronizeAllApprovedSubmissions functie:
-const synchronizeAllApprovedSubmissions = async () => {
-  if (!confirm('Wil je alle goedgekeurde submissions synchroniseren met het unified system? Dit kan even duren.')) {
-    return;
-  }
-
-  try {
-    setSyncing(true);
-    const approvedSubmissions = submissions.filter(s => s.status === 'approved');
-    let syncedCount = 0;
-    let errorCount = 0;
-    
-    console.log(`🔄 Starting unified sync of ${approvedSubmissions.length} approved submissions...`);
-    
-    for (const submission of approvedSubmissions) {
-      console.log(`📊 Processing submission ${submission.id} for assignment #${submission.assignment_number}...`);
+    try {
+      setSyncing(true);
+      const approvedSubmissions = submissions.filter(s => s.status === 'approved');
+      let syncedCount = 0;
+      let errorCount = 0;
       
-      // Gebruik unified system voor synchronisatie
-      const success = await AssignmentStatusManager.completeViaReview(
-        submission.id,
-        submission.team_id,
-        submission.assignment_number!,
-        submission.points_awarded,
-        config?.game_session_id!,
-        submission.jury_notes || 'Bulk synchronisatie vanuit review interface'
-      );
+      console.log(`🔄 Starting unified sync of ${approvedSubmissions.length} approved submissions...`);
       
-      if (success) {
-        console.log(`✅ Successfully synced assignment #${submission.assignment_number}`);
-        syncedCount++;
-      } else {
-        console.error(`❌ Sync failed for assignment #${submission.assignment_number}`);
-        errorCount++;
+      for (const submission of approvedSubmissions) {
+        console.log(`📊 Processing submission ${submission.id} for assignment #${submission.assignment_number}...`);
+        
+        try {
+          // Gebruik unified system voor synchronisatie
+          const success = await AssignmentStatusManager.completeViaReview(
+            submission.id,
+            submission.team_id,
+            submission.assignment_number!,
+            submission.points_awarded,
+            config?.game_session_id!,
+            submission.jury_notes || 'Bulk synchronisatie vanuit review interface'
+          );
+          
+          if (success) {
+            console.log(`✅ Successfully synced assignment #${submission.assignment_number}`);
+            syncedCount++;
+          } else {
+            console.error(`❌ Sync failed for assignment #${submission.assignment_number}`);
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`💥 Exception syncing assignment #${submission.assignment_number}:`, error);
+          errorCount++;
+        }
       }
+      
+      if (errorCount > 0) {
+        alert(`⚠️ ${syncedCount} submissions gesynchroniseerd, ${errorCount} fouten. Check de console voor details.`);
+      } else {
+        alert(`✅ ${syncedCount} submissions succesvol gesynchroniseerd met unified system!`);
+      }
+    } catch (error) {
+      console.error('💥 Sync error:', error);
+      alert('❌ Fout bij synchroniseren');
+    } finally {
+      setSyncing(false);
     }
-    
-    if (errorCount > 0) {
-      alert(`⚠️ ${syncedCount} submissions gesynchroniseerd, ${errorCount} fouten. Check de console voor details.`);
-    } else {
-      alert(`✅ ${syncedCount} submissions succesvol gesynchroniseerd met unified system!`);
-    }
-  } catch (error) {
-    console.error('💥 Sync error:', error);
-    alert('❌ Fout bij synchroniseren');
-  } finally {
-    setSyncing(false);
-  }
-};
-
+  };
 
   const openReviewModal = (submission: Submission) => {
     setSelectedSubmission(submission);
@@ -294,7 +308,7 @@ const synchronizeAllApprovedSubmissions = async () => {
   const filteredSubmissions = submissions.filter(submission => {
     const statusMatch = filter === 'all' || submission.status === filter;
     const teamMatch = teamFilter === 'all' || submission.team_id === teamFilter;
-    const categoryMatch = categoryFilter === 'all' || submission.team_category === categoryFilter;
+    const categoryMatch = categoryFilter === 'all' || submission.team_category === categoryMatch;
     return statusMatch && teamMatch && categoryMatch;
   });
 
